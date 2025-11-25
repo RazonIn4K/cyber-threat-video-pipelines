@@ -125,6 +125,16 @@ make sora
 make all
 ```
 
+## Simulation Mode (Offline)
+
+Use the fake adapters to exercise the full pipeline without API keys or network:
+
+```bash
+make simulate
+```
+
+This will populate `data/processed/`, `audio/`, and `video/` with clearly fake content for end-to-end checks.
+
 > **Note:** Makefile commands are placeholders. See `scripts/` for actual implementations.
 
 ---

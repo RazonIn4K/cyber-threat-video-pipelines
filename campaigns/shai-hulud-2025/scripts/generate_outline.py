@@ -17,6 +17,7 @@ from rich.panel import Panel
 
 from config import get_config
 from logging_utils import get_logger
+from simulation_adapters import FakeGeminiAdapter
 
 console = Console()
 log = get_logger(__name__)
@@ -48,11 +49,27 @@ def generate_outline(
     model: str,
     temperature: float,
     top_p: float,
+    simulate: bool = False,
 ) -> dict:
     """Call Gemini API to generate outline JSON."""
-
-    genai.configure(api_key=api_key)
-    model_instance = genai.GenerativeModel(model)
+    if simulate:
+        adapter = FakeGeminiAdapter()
+        adapter.configure(api_key="fake")
+        model_instance = adapter.GenerativeModel(model)
+        generation_config = adapter.GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            response_mime_type="application/json",
+        )
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        genai.configure(api_key=api_key)
+        model_instance = genai.GenerativeModel(model)
+        generation_config = genai.GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            response_mime_type="application/json",
+        )
 
     # Construct the full prompt
     full_prompt = f"""{prompt_template}
@@ -73,11 +90,7 @@ Now generate the video outline JSON. Output ONLY valid JSON, no markdown code bl
     try:
         response = model_instance.generate_content(
             full_prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=temperature,
-                top_p=top_p,
-                response_mime_type="application/json",
-            ),
+            generation_config=generation_config,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("Gemini API call failed")
@@ -85,7 +98,11 @@ Now generate the video outline JSON. Output ONLY valid JSON, no markdown code bl
 
     # Parse the JSON response
     try:
-        outline = json.loads(response.text)
+        if simulate and "```" in response.text:
+            clean_text = response.text.replace("```json", "").replace("```", "").strip()
+            outline = json.loads(clean_text)
+        else:
+            outline = json.loads(response.text)
     except json.JSONDecodeError as exc:
         console.print(f"[red]Failed to parse JSON response: {exc}[/red]")
         console.print(f"Raw response:\n{response.text[:500]}...")
@@ -109,7 +126,11 @@ Now generate the video outline JSON. Output ONLY valid JSON, no markdown code bl
     "--dry-run", is_flag=True,
     help="Print prompt without calling API"
 )
-def main(threat_doc: Path | None, output: Path | None, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapters instead of real API"
+)
+def main(threat_doc: Path | None, output: Path | None, dry_run: bool, simulate: bool):
     """Generate video outline from threat document."""
 
     config = get_config()
@@ -125,7 +146,7 @@ def main(threat_doc: Path | None, output: Path | None, dry_run: bool):
             console.print(f"[red]Missing file: {path}[/red]")
         raise click.Abort()
 
-    if not config.gemini_api_key and not dry_run:
+    if not config.gemini_api_key and not dry_run and not simulate:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
 
@@ -156,6 +177,7 @@ def main(threat_doc: Path | None, output: Path | None, dry_run: bool):
         config.gemini_model,
         config.gemini_temperature,
         config.gemini_top_p,
+        simulate,
     )
 
     # Save output
