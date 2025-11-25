@@ -18,6 +18,8 @@ help:
 	@printf "  make validate           Sanity-check required secrets/files\n"
 	@printf "  make status             Show pipeline status\n"
 	@printf "  make dry-run            Preview prompts without API calls\n"
+	@printf "  make simulate           Run pipeline with fake adapters (offline)\n"
+	@printf "  make test               Run unit tests\n"
 	@printf "  make outline            Generate video outline\n"
 	@printf "  make script             Generate long-form script\n"
 	@printf "  make shorts             Generate YouTube Shorts scripts\n"
@@ -136,6 +138,24 @@ dry-run:
 	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_sora_clips --dry-run
 	@echo ""
 	@echo "✅ Dry run complete - no API calls made"
+
+# Simulation mode (offline, uses fake adapters)
+.PHONY: simulate
+simulate:
+	@echo "🤖 SIMULATION - Running full pipeline with fake adapters..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_outline --simulate
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_script --simulate
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_shorts --simulate
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_shotlist --simulate
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_audio --simulate
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_sora_clips --simulate
+	@echo "✅ Simulation complete - check data/processed, audio/, video/ for fake outputs"
+
+# Unit tests
+.PHONY: test
+test:
+	@echo "🧪 Running unit tests..."
+	cd $(CAMPAIGN_DIR) && PYTHONPATH=$(SCRIPTS_DIR):$$PYTHONPATH $(PYTHON) -m pytest
 
 # Clean generated files
 .PHONY: clean

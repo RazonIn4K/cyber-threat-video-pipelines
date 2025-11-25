@@ -17,6 +17,7 @@ from rich.panel import Panel
 
 from config import get_config
 from logging_utils import get_logger
+from simulation_adapters import FakeGeminiAdapter
 
 console = Console()
 log = get_logger(__name__)
@@ -30,11 +31,27 @@ def generate_shotlist(
     model: str,
     temperature: float,
     top_p: float,
+    simulate: bool = False,
 ) -> dict:
     """Call Gemini API to generate Sora shotlist."""
-
-    genai.configure(api_key=api_key)
-    model_instance = genai.GenerativeModel(model)
+    if simulate:
+        adapter = FakeGeminiAdapter()
+        adapter.configure(api_key="fake")
+        model_instance = adapter.GenerativeModel(model)
+        generation_config = adapter.GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            response_mime_type="application/json",
+        )
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        genai.configure(api_key=api_key)
+        model_instance = genai.GenerativeModel(model)
+        generation_config = genai.GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            response_mime_type="application/json",
+        )
 
     full_prompt = f"""{prompt_template}
 
@@ -57,18 +74,18 @@ Now generate the Sora 2 shotlist JSON. Output ONLY valid JSON, no markdown.
     try:
         response = model_instance.generate_content(
             full_prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=temperature,
-                top_p=top_p,
-                response_mime_type="application/json",
-            ),
+            generation_config=generation_config,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("Gemini API call failed")
         raise click.ClickException(f"Gemini API call failed: {exc}") from exc
 
     try:
-        shotlist = json.loads(response.text)
+        if simulate and "```" in response.text:
+            clean_text = response.text.replace("```json", "").replace("```", "").strip()
+            shotlist = json.loads(clean_text)
+        else:
+            shotlist = json.loads(response.text)
     except json.JSONDecodeError as exc:
         console.print(f"[red]Failed to parse JSON: {exc}[/red]")
         raise click.ClickException("Gemini response was not valid JSON") from exc
@@ -96,7 +113,11 @@ Now generate the Sora 2 shotlist JSON. Output ONLY valid JSON, no markdown.
     "--dry-run", is_flag=True,
     help="Print prompt without calling API"
 )
-def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapters instead of real API"
+)
+def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: bool, simulate: bool):
     """Generate Sora 2 shotlist from script."""
 
     config = get_config()
@@ -104,7 +125,7 @@ def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: b
     script_path = script or config.script_longform
     output = output or config.shotlist_json
 
-    if not config.gemini_api_key and not dry_run:
+    if not config.gemini_api_key and not dry_run and not simulate:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
 
@@ -141,6 +162,7 @@ def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: b
         config.gemini_model,
         config.gemini_temperature,
         config.gemini_top_p,
+        simulate,
     )
 
     output.write_text(json.dumps(shotlist, indent=2), encoding="utf-8")

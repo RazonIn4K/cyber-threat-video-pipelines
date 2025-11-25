@@ -112,7 +112,11 @@ class Config:
     
     def ensure_dirs(self):
         """Create output directories if they don't exist."""
-        for dir_path in [self.data_processed_dir, self.audio_dir, self.video_dir]:
+        processed_dir = self.data_processed_dir
+        if self.data_dir and self.data_processed_dir.parent != self.data_dir:
+            processed_dir = self.data_dir / "processed"
+
+        for dir_path in [processed_dir, self.audio_dir, self.video_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
     
     def require_files(self, paths: Iterable[Path]) -> list[str]:

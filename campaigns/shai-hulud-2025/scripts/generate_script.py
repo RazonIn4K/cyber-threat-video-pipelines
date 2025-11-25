@@ -17,6 +17,7 @@ from rich.panel import Panel
 
 from config import get_config
 from logging_utils import get_logger
+from simulation_adapters import FakeGeminiAdapter
 
 console = Console()
 log = get_logger(__name__)
@@ -31,11 +32,27 @@ def generate_script(
     model: str,
     temperature: float,
     top_p: float,
+    simulate: bool = False,
 ) -> str:
     """Call Gemini API to generate script from outline."""
-
-    genai.configure(api_key=api_key)
-    model_instance = genai.GenerativeModel(model)
+    if simulate:
+        adapter = FakeGeminiAdapter()
+        adapter.configure(api_key="fake")
+        model_instance = adapter.GenerativeModel(model)
+        generation_config = adapter.GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=8000,
+        )
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        genai.configure(api_key=api_key)
+        model_instance = genai.GenerativeModel(model)
+        generation_config = genai.GenerationConfig(
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=8000,
+        )
 
     full_prompt = f"""{prompt_template}
 
@@ -63,11 +80,7 @@ Output in plain text/markdown format.
     try:
         response = model_instance.generate_content(
             full_prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=temperature,
-                top_p=top_p,
-                max_output_tokens=8000,
-            ),
+            generation_config=generation_config,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("Gemini API call failed")
@@ -96,7 +109,11 @@ Output in plain text/markdown format.
     "--dry-run", is_flag=True,
     help="Print prompt without calling API"
 )
-def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapters instead of real API"
+)
+def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool, simulate: bool):
     """Generate video script from outline."""
 
     config = get_config()
@@ -104,7 +121,7 @@ def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool)
     outline_path = outline or config.outline_json
     output = output or config.script_longform
 
-    if not config.gemini_api_key and not dry_run:
+    if not config.gemini_api_key and not dry_run and not simulate:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
 
@@ -150,6 +167,7 @@ def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool)
         config.gemini_model,
         config.gemini_temperature,
         config.gemini_top_p,
+        simulate,
     )
 
     # Save output

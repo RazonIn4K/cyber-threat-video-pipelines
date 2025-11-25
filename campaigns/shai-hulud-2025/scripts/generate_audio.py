@@ -19,6 +19,7 @@ from elevenlabs import ElevenLabs
 
 from config import get_config
 from logging_utils import get_logger
+from simulation_adapters import FakeElevenLabsClient
 
 console = Console()
 log = get_logger(__name__)
@@ -49,10 +50,15 @@ def generate_audio(
     api_key: str,
     output_path: Path,
     model_id: str,
+    simulate: bool = False,
 ) -> None:
     """Call ElevenLabs API to generate audio."""
 
-    client = ElevenLabs(api_key=api_key)
+    if simulate:
+        client = FakeElevenLabsClient(api_key="fake")
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        client = ElevenLabs(api_key=api_key)
 
     console.print("[bold blue]Calling ElevenLabs API...[/bold blue]")
     console.print(f"  Voice ID: {voice_id}")
@@ -140,7 +146,11 @@ def generate_audio(
     "--dry-run", is_flag=True,
     help="Show cleaned script without calling API"
 )
-def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapters instead of real API"
+)
+def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run: bool, simulate: bool):
     """Generate voiceover from script using ElevenLabs."""
     
     config = get_config()
@@ -149,11 +159,11 @@ def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run
     output = output or config.voiceover_mp3
     voice_id = voice_id or config.elevenlabs_voice_id
     
-    if not config.elevenlabs_api_key and not dry_run:
+    if not config.elevenlabs_api_key and not dry_run and not simulate:
         console.print("[red]Error: ELEVENLABS_API_KEY not set[/red]")
         raise click.Abort()
-    
-    if not voice_id and not dry_run:
+
+    if not voice_id and not dry_run and not simulate:
         console.print("[red]Error: No voice ID specified[/red]")
         console.print("[yellow]Set ELEVENLABS_VOICE_ID or use --voice-id[/yellow]")
         raise click.Abort()
@@ -190,7 +200,8 @@ def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run
         voice_id,
         config.elevenlabs_api_key,
         output,
-        config.elevenlabs_model
+        config.elevenlabs_model,
+        simulate,
     )
     
     file_size = output.stat().st_size / (1024 * 1024)  # MB
