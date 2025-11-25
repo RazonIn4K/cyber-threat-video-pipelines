@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.env
+.venv
+env/
+*.egg-info/
+
+# API Keys and Secrets
+.env
+.env.local
+*.key
+secrets.json
+credentials.json
+
+# Generated outputs (keep .gitkeep files)
+campaigns/*/audio/*.mp3
+campaigns/*/audio/*.wav
+campaigns/*/video/*.mp4
+campaigns/*/video/*.webm
+campaigns/*/data/processed/*.json
+campaigns/*/data/processed/*.md
+!campaigns/*/data/processed/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Build outputs
+dist/
+build/
