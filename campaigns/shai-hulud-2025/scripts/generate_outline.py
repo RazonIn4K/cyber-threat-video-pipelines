@@ -15,6 +15,7 @@ from rich.panel import Panel
 
 import google.generativeai as genai
 from config import get_config
+from simulation_adapters import FakeGeminiAdapter
 
 console = Console()
 
@@ -42,12 +43,19 @@ def generate_outline(
     threat_doc: str,
     prompt_template: str,
     api_key: str,
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.0-flash",
+    simulate: bool = False
 ) -> dict:
     """Call Gemini API to generate outline JSON."""
     
-    genai.configure(api_key=api_key)
-    model_instance = genai.GenerativeModel(model)
+    if simulate:
+        adapter = FakeGeminiAdapter()
+        adapter.configure(api_key="fake")
+        model_instance = adapter.GenerativeModel(model)
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        genai.configure(api_key=api_key)
+        model_instance = genai.GenerativeModel(model)
     
     # Construct the full prompt
     full_prompt = f"""{prompt_template}
@@ -75,7 +83,12 @@ Now generate the video outline JSON. Output ONLY valid JSON, no markdown code bl
     
     # Parse the JSON response
     try:
-        outline = json.loads(response.text)
+        if simulate and "```json" in response.text:
+             # Strip markdown code blocks if present (fake adapter puts them there to mimic real behavior)
+             clean_text = response.text.replace("```json", "").replace("```", "").strip()
+             outline = json.loads(clean_text)
+        else:
+             outline = json.loads(response.text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Failed to parse JSON response: {e}[/red]")
         console.print(f"Raw response:\n{response.text[:500]}...")
@@ -99,7 +112,11 @@ Now generate the video outline JSON. Output ONLY valid JSON, no markdown code bl
     "--dry-run", is_flag=True,
     help="Print prompt without calling API"
 )
-def main(threat_doc: Path | None, output: Path | None, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapter instead of real API"
+)
+def main(threat_doc: Path | None, output: Path | None, dry_run: bool, simulate: bool):
     """Generate video outline from threat document."""
     
     config = get_config()
@@ -109,7 +126,7 @@ def main(threat_doc: Path | None, output: Path | None, dry_run: bool):
     output = output or config.outline_json
     
     # Validate
-    if not config.gemini_api_key and not dry_run:
+    if not config.gemini_api_key and not dry_run and not simulate:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
     
@@ -141,7 +158,8 @@ def main(threat_doc: Path | None, output: Path | None, dry_run: bool):
         threat_content,
         prompt_template,
         config.gemini_api_key,
-        config.gemini_model
+        config.gemini_model,
+        simulate
     )
     
     # Save output

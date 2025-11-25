@@ -15,6 +15,7 @@ from rich.panel import Panel
 
 import google.generativeai as genai
 from config import get_config
+from simulation_adapters import FakeGeminiAdapter
 
 console = Console()
 
@@ -24,12 +25,19 @@ def generate_shotlist(
     prompt_template: str,
     aspect_ratio: str,
     api_key: str,
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.0-flash",
+    simulate: bool = False
 ) -> dict:
     """Call Gemini API to generate Sora shotlist."""
     
-    genai.configure(api_key=api_key)
-    model_instance = genai.GenerativeModel(model)
+    if simulate:
+        adapter = FakeGeminiAdapter()
+        adapter.configure(api_key="fake")
+        model_instance = adapter.GenerativeModel(model)
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        genai.configure(api_key=api_key)
+        model_instance = genai.GenerativeModel(model)
     
     full_prompt = f"""{prompt_template}
 
@@ -58,7 +66,12 @@ Now generate the Sora 2 shotlist JSON. Output ONLY valid JSON, no markdown.
     )
     
     try:
-        shotlist = json.loads(response.text)
+        if simulate and "```json" in response.text:
+             # Strip markdown code blocks if present (fake adapter puts them there to mimic real behavior)
+             clean_text = response.text.replace("```json", "").replace("```", "").strip()
+             shotlist = json.loads(clean_text)
+        else:
+             shotlist = json.loads(response.text)
     except json.JSONDecodeError as e:
         console.print(f"[red]Failed to parse JSON: {e}[/red]")
         raise
@@ -86,7 +99,11 @@ Now generate the Sora 2 shotlist JSON. Output ONLY valid JSON, no markdown.
     "--dry-run", is_flag=True,
     help="Print prompt without calling API"
 )
-def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapter instead of real API"
+)
+def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: bool, simulate: bool):
     """Generate Sora 2 shotlist from script."""
     
     config = get_config()
@@ -94,7 +111,7 @@ def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: b
     script_path = script or config.script_longform
     output = output or config.shotlist_json
     
-    if not config.gemini_api_key and not dry_run:
+    if not config.gemini_api_key and not dry_run and not simulate:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
     
@@ -125,7 +142,8 @@ def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: b
         prompt_template,
         aspect_ratio,
         config.gemini_api_key,
-        config.gemini_model
+        config.gemini_model,
+        simulate
     )
     
     output.write_text(json.dumps(shotlist, indent=2), encoding="utf-8")

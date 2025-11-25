@@ -125,6 +125,17 @@ make sora
 make all
 ```
 
+## Simulation Mode
+
+You can run the entire pipeline in simulation mode without API keys or internet access. This uses fake adapters to generate placeholder content.
+
+```bash
+# Run full pipeline in simulation mode
+make simulate
+```
+
+This will populate `data/processed/` and `audio/` with obviously fake content, allowing you to test the workflow logic.
+
 > **Note:** Makefile commands are placeholders. See `scripts/` for actual implementations.
 
 ---

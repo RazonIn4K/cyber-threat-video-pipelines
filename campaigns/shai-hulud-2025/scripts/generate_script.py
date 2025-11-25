@@ -15,6 +15,7 @@ from rich.panel import Panel
 
 import google.generativeai as genai
 from config import get_config
+from simulation_adapters import FakeGeminiAdapter
 
 console = Console()
 
@@ -25,12 +26,19 @@ def generate_script(
     voice_style: str,
     target_minutes: int,
     api_key: str,
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.0-flash",
+    simulate: bool = False
 ) -> str:
     """Call Gemini API to generate script from outline."""
     
-    genai.configure(api_key=api_key)
-    model_instance = genai.GenerativeModel(model)
+    if simulate:
+        adapter = FakeGeminiAdapter()
+        adapter.configure(api_key="fake")
+        model_instance = adapter.GenerativeModel(model)
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        genai.configure(api_key=api_key)
+        model_instance = genai.GenerativeModel(model)
     
     full_prompt = f"""{prompt_template}
 
@@ -86,7 +94,11 @@ Output in plain text/markdown format.
     "--dry-run", is_flag=True,
     help="Print prompt without calling API"
 )
-def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapter instead of real API"
+)
+def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool, simulate: bool):
     """Generate video script from outline."""
     
     config = get_config()
@@ -94,7 +106,7 @@ def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool)
     outline_path = outline or config.outline_json
     output = output or config.script_longform
     
-    if not config.gemini_api_key and not dry_run:
+    if not config.gemini_api_key and not dry_run and not simulate:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
     
@@ -129,7 +141,8 @@ def main(outline: Path | None, output: Path | None, minutes: int, dry_run: bool)
         voice_style,
         minutes,
         config.gemini_api_key,
-        config.gemini_model
+        config.gemini_model,
+        simulate
     )
     
     # Save output

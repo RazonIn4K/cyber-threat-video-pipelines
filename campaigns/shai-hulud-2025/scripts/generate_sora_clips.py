@@ -17,6 +17,7 @@ from rich.progress import Progress
 
 from openai import OpenAI
 from config import get_config
+from simulation_adapters import FakeOpenAIClient, get_fake_httpx_client
 
 console = Console()
 
@@ -25,7 +26,8 @@ def generate_sora_clip(
     client: OpenAI,
     scene: dict,
     output_dir: Path,
-    resolution: str = "1080p"
+    resolution: str = "1080p",
+    simulate: bool = False
 ) -> Path | None:
     """Generate a single Sora clip from a scene definition."""
     
@@ -53,7 +55,7 @@ def generate_sora_clip(
         
         # Poll for completion
         while response.status == "processing":
-            time.sleep(5)
+            time.sleep(1 if simulate else 5)
             response = client.responses.retrieve(response.id)
         
         if response.status == "completed":
@@ -62,10 +64,16 @@ def generate_sora_clip(
             output_path = output_dir / f"{scene_id}.mp4"
             
             # Download using httpx
-            import httpx
-            with httpx.Client() as http:
-                video_response = http.get(video_url)
-                output_path.write_bytes(video_response.content)
+            if simulate:
+                FakeHttpxClient = get_fake_httpx_client()
+                with FakeHttpxClient() as http:
+                    video_response = http.get(video_url)
+                    output_path.write_bytes(video_response.content)
+            else:
+                import httpx
+                with httpx.Client() as http:
+                    video_response = http.get(video_url)
+                    output_path.write_bytes(video_response.content)
             
             return output_path
         else:
@@ -97,7 +105,11 @@ def generate_sora_clip(
     "--dry-run", is_flag=True,
     help="Show prompts without calling API"
 )
-def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: bool):
+@click.option(
+    "--simulate", is_flag=True,
+    help="Use fake adapter instead of real API"
+)
+def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: bool, simulate: bool):
     """Generate Sora 2 video clips from shotlist."""
     
     config = get_config()
@@ -105,7 +117,7 @@ def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: 
     shotlist_path = shotlist or config.shotlist_json
     output_dir = output_dir or config.video_dir
     
-    if not config.openai_api_key and not dry_run:
+    if not config.openai_api_key and not dry_run and not simulate:
         console.print("[red]Error: OPENAI_API_KEY not set[/red]")
         raise click.Abort()
     
@@ -144,7 +156,12 @@ def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: 
         return
     
     # Initialize OpenAI client
-    client = OpenAI(api_key=config.openai_api_key)
+    if simulate:
+        client = FakeOpenAIClient(api_key="fake")
+        console.print("[bold yellow]Running in SIMULATION mode[/bold yellow]")
+    else:
+        client = OpenAI(api_key=config.openai_api_key)
+
     config.ensure_dirs()
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -160,7 +177,8 @@ def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: 
                 client,
                 scene_data,
                 output_dir,
-                config.video_resolution
+                config.video_resolution,
+                simulate
             )
             
             if result:

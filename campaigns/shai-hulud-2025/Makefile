@@ -35,6 +35,8 @@ help:
 	@echo "║                                                                  ║"
 	@echo "║  Testing:                                                        ║"
 	@echo "║    make dry-run      - Preview all steps without API calls       ║"
+	@echo "║    make simulate     - Run full pipeline with fake adapters      ║"
+	@echo "║    make test         - Run unit tests                            ║"
 	@echo "║                                                                  ║"
 	@echo "║  Utilities:                                                      ║"
 	@echo "║    make clean        - Remove generated files                    ║"
@@ -147,6 +149,31 @@ dry-run:
 	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_sora_clips --dry-run
 	@echo ""
 	@echo "✅ Dry run complete - no API calls made"
+
+# Simulation mode (full pipeline with fake adapters)
+.PHONY: simulate
+simulate:
+	@echo "🤖 SIMULATION - Running full pipeline with fake adapters..."
+	@echo ""
+	cd $(CAMPAIGN_DIR) && export PYTHONPATH=$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m scripts.generate_outline --simulate
+	@echo ""
+	cd $(CAMPAIGN_DIR) && export PYTHONPATH=$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m scripts.generate_script --simulate
+	@echo ""
+	cd $(CAMPAIGN_DIR) && export PYTHONPATH=$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m scripts.generate_shorts --simulate
+	@echo ""
+	cd $(CAMPAIGN_DIR) && export PYTHONPATH=$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m scripts.generate_shotlist --simulate
+	@echo ""
+	cd $(CAMPAIGN_DIR) && export PYTHONPATH=$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m scripts.generate_audio --simulate
+	@echo ""
+	cd $(CAMPAIGN_DIR) && export PYTHONPATH=$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m scripts.generate_sora_clips --simulate
+	@echo ""
+	@echo "✅ Simulation complete - Check data/processed and audio/ for fake content"
+
+# Unit tests
+.PHONY: test
+test:
+	@echo "🧪 Running unit tests..."
+	export PYTHONPATH=$PYTHONPATH:$(CAMPAIGN_DIR)/scripts && $(PYTHON) -m pytest tests/
 
 # Clean generated files
 .PHONY: clean
