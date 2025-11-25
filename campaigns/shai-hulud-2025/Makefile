@@ -3,22 +3,8 @@
 
 # Configuration
 CAMPAIGN_DIR := $(shell pwd)
-DOCS_DIR := $(CAMPAIGN_DIR)/docs
-DATA_DIR := $(CAMPAIGN_DIR)/data
-PROMPTS_DIR := $(CAMPAIGN_DIR)/prompts
-AUDIO_DIR := $(CAMPAIGN_DIR)/audio
-VIDEO_DIR := $(CAMPAIGN_DIR)/video
-
-# Input files
-PARADIGM_DOC := $(DOCS_DIR)/shai-hulud-paradigm.md
-INTEL_NOTES := $(DATA_DIR)/raw/notes-snippets.md
-
-# Output files
-OUTLINE_JSON := $(DATA_DIR)/processed/outline.json
-SCRIPT_LONGFORM := $(DATA_DIR)/processed/script-longform.md
-SHORTS_SCRIPTS := $(DATA_DIR)/processed/shorts-scripts.md
-SHOTLIST_JSON := $(DATA_DIR)/processed/shotlist.json
-VOICEOVER_MP3 := $(AUDIO_DIR)/voiceover.mp3
+SCRIPTS_DIR := $(CAMPAIGN_DIR)/scripts
+PYTHON := python3
 
 # Default target
 .PHONY: all
@@ -27,138 +13,176 @@ all: help
 # Help target
 .PHONY: help
 help:
-	@echo "╔══════════════════════════════════════════════════════════════╗"
-	@echo "║     Shai-Hulud 2025 Campaign - Video Pipeline Makefile      ║"
-	@echo "╠══════════════════════════════════════════════════════════════╣"
-	@echo "║  Targets:                                                    ║"
-	@echo "║    make outline   - Generate video outline from threat doc   ║"
-	@echo "║    make script    - Generate long-form script from outline   ║"
-	@echo "║    make shorts    - Generate YouTube Shorts scripts          ║"
-	@echo "║    make shotlist  - Generate Sora 2 shotlist from script     ║"
-	@echo "║    make audio     - Generate ElevenLabs voiceover            ║"
-	@echo "║    make sora      - Generate Sora 2 video clips              ║"
-	@echo "║    make pipeline  - Run full pipeline (outline→sora)         ║"
-	@echo "║    make clean     - Remove generated files                   ║"
-	@echo "║    make status    - Show pipeline status                     ║"
-	@echo "╚══════════════════════════════════════════════════════════════╝"
+	@echo "╔══════════════════════════════════════════════════════════════════╗"
+	@echo "║       Shai-Hulud 2025 Campaign - Video Pipeline Makefile        ║"
+	@echo "╠══════════════════════════════════════════════════════════════════╣"
+	@echo "║  Setup:                                                          ║"
+	@echo "║    make install      - Install Python dependencies               ║"
+	@echo "║    make setup-env    - Create .env file from template            ║"
+	@echo "║                                                                  ║"
+	@echo "║  Pipeline Steps (run in order):                                  ║"
+	@echo "║    make outline      - Generate video outline from threat doc    ║"
+	@echo "║    make script       - Generate long-form script from outline    ║"
+	@echo "║    make shorts       - Generate YouTube Shorts scripts           ║"
+	@echo "║    make shotlist     - Generate Sora 2 shotlist from script      ║"
+	@echo "║    make audio        - Generate ElevenLabs voiceover             ║"
+	@echo "║    make sora         - Generate Sora 2 video clips               ║"
+	@echo "║                                                                  ║"
+	@echo "║  Workflow:                                                       ║"
+	@echo "║    make content      - Run outline → script → shorts → shotlist  ║"
+	@echo "║    make media        - Run audio → sora                          ║"
+	@echo "║    make pipeline     - Run full pipeline (all steps)             ║"
+	@echo "║                                                                  ║"
+	@echo "║  Testing:                                                        ║"
+	@echo "║    make dry-run      - Preview all steps without API calls       ║"
+	@echo "║                                                                  ║"
+	@echo "║  Utilities:                                                      ║"
+	@echo "║    make clean        - Remove generated files                    ║"
+	@echo "║    make status       - Show pipeline status                      ║"
+	@echo "║    make validate     - Check configuration                       ║"
+	@echo "╚══════════════════════════════════════════════════════════════════╝"
+
+# Setup targets
+.PHONY: install
+install:
+	@echo "📦 Installing Python dependencies..."
+	pip install -r requirements.txt
+	@echo "✅ Dependencies installed"
+
+.PHONY: setup-env
+setup-env:
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "✅ Created .env from template"; \
+		echo "⚠️  Edit .env and add your API keys"; \
+	else \
+		echo "⚠️  .env already exists, skipping"; \
+	fi
+
+# Validation
+.PHONY: validate
+validate:
+	@echo "🔍 Validating configuration..."
+	@$(PYTHON) -c "from scripts.config import get_config; c = get_config(); errors = c.validate(); print('\n'.join(errors) if errors else '✅ Configuration valid')"
 
 # Step 1: Generate outline from threat doc
 .PHONY: outline
 outline:
-	@echo "📋 Generating video outline..."
-	@echo "Input: $(PARADIGM_DOC)"
-	@echo "Prompt: $(PROMPTS_DIR)/01-threat-to-outline.md"
-	@echo "Output: $(OUTLINE_JSON)"
-	@echo ""
-	@echo "TODO: Implement Gemini 3 API call"
-	@echo "  python scripts/generate_outline.py \\"
-	@echo "    --threat-doc $(PARADIGM_DOC) \\"
-	@echo "    --prompt $(PROMPTS_DIR)/01-threat-to-outline.md \\"
-	@echo "    --output $(OUTLINE_JSON)"
+	@echo "📋 Step 1: Generating video outline..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_outline
 
 # Step 2: Generate long-form script from outline
 .PHONY: script
 script:
-	@echo "📝 Generating long-form script..."
-	@echo "Input: $(OUTLINE_JSON)"
-	@echo "Prompt: $(PROMPTS_DIR)/02-outline-to-script.md"
-	@echo "Output: $(SCRIPT_LONGFORM)"
-	@echo ""
-	@echo "TODO: Implement Gemini 3 API call"
-	@echo "  python scripts/generate_script.py \\"
-	@echo "    --outline $(OUTLINE_JSON) \\"
-	@echo "    --prompt $(PROMPTS_DIR)/02-outline-to-script.md \\"
-	@echo "    --output $(SCRIPT_LONGFORM)"
+	@echo "📝 Step 2: Generating long-form script..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_script
 
 # Step 3: Generate YouTube Shorts scripts
 .PHONY: shorts
 shorts:
-	@echo "🎬 Generating Shorts scripts..."
-	@echo "Input: $(SCRIPT_LONGFORM)"
-	@echo "Prompt: $(PROMPTS_DIR)/03-script-to-shorts.md"
-	@echo "Output: $(SHORTS_SCRIPTS)"
-	@echo ""
-	@echo "TODO: Implement LLM API call"
-	@echo "  python scripts/generate_shorts.py \\"
-	@echo "    --script $(SCRIPT_LONGFORM) \\"
-	@echo "    --prompt $(PROMPTS_DIR)/03-script-to-shorts.md \\"
-	@echo "    --output $(SHORTS_SCRIPTS)"
+	@echo "🎬 Step 3: Generating Shorts scripts..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_shorts
 
 # Step 4: Generate Sora 2 shotlist
 .PHONY: shotlist
 shotlist:
-	@echo "🎥 Generating Sora 2 shotlist..."
-	@echo "Input: $(SCRIPT_LONGFORM)"
-	@echo "Prompt: $(PROMPTS_DIR)/04-script-to-shotlist.md"
-	@echo "Output: $(SHOTLIST_JSON)"
-	@echo ""
-	@echo "TODO: Implement LLM API call"
-	@echo "  python scripts/generate_shotlist.py \\"
-	@echo "    --script $(SCRIPT_LONGFORM) \\"
-	@echo "    --prompt $(PROMPTS_DIR)/04-script-to-shotlist.md \\"
-	@echo "    --output $(SHOTLIST_JSON)"
+	@echo "🎥 Step 4: Generating Sora 2 shotlist..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_shotlist
 
 # Step 5: Generate ElevenLabs voiceover
 .PHONY: audio
 audio:
-	@echo "🎙️ Generating ElevenLabs voiceover..."
-	@echo "Input: $(SCRIPT_LONGFORM)"
-	@echo "Style: $(PROMPTS_DIR)/05-elevenlabs-style-note.md"
-	@echo "Output: $(VOICEOVER_MP3)"
-	@echo ""
-	@echo "TODO: Implement ElevenLabs API call"
-	@echo "  python scripts/generate_audio.py \\"
-	@echo "    --script $(SCRIPT_LONGFORM) \\"
-	@echo "    --voice-id YOUR_VOICE_ID \\"
-	@echo "    --output $(VOICEOVER_MP3)"
+	@echo "🎙️ Step 5: Generating ElevenLabs voiceover..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_audio
 
 # Step 6: Generate Sora 2 video clips
 .PHONY: sora
 sora:
-	@echo "🎬 Generating Sora 2 video clips..."
-	@echo "Input: $(SHOTLIST_JSON)"
-	@echo "Output: $(VIDEO_DIR)/*.mp4"
-	@echo ""
-	@echo "TODO: Implement Sora 2 API call"
-	@echo "  python scripts/generate_sora_clips.py \\"
-	@echo "    --shotlist $(SHOTLIST_JSON) \\"
-	@echo "    --output-dir $(VIDEO_DIR)"
+	@echo "🎬 Step 6: Generating Sora 2 video clips..."
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_sora_clips
 
-# Run full pipeline
-.PHONY: pipeline
-pipeline: outline script shorts shotlist audio sora
+# Workflow targets
+.PHONY: content
+content: outline script shorts shotlist
 	@echo ""
+	@echo "✅ Content generation complete!"
+	@echo "   Generated files in data/processed/"
+
+.PHONY: media
+media: audio sora
+	@echo ""
+	@echo "✅ Media generation complete!"
+	@echo "   Audio: audio/voiceover.mp3"
+	@echo "   Video: video/*.mp4"
+
+.PHONY: pipeline
+pipeline: content media
+	@echo ""
+	@echo "════════════════════════════════════════════"
 	@echo "✅ Full pipeline complete!"
-	@echo "Next: Import audio + video into DaVinci Resolve or Premiere Pro"
+	@echo "════════════════════════════════════════════"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Import audio/voiceover.mp3 into your editor"
+	@echo "  2. Import video/*.mp4 clips as B-roll"
+	@echo "  3. Sync audio with video using B-roll markers"
+	@echo "  4. Add titles, transitions, and effects"
+	@echo "  5. Export final video"
+
+# Dry run (test without API calls)
+.PHONY: dry-run
+dry-run:
+	@echo "🧪 DRY RUN - Testing pipeline without API calls..."
+	@echo ""
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_outline --dry-run
+	@echo ""
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_script --dry-run
+	@echo ""
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_shorts --dry-run
+	@echo ""
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_shotlist --dry-run
+	@echo ""
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_audio --dry-run
+	@echo ""
+	cd $(CAMPAIGN_DIR) && $(PYTHON) -m scripts.generate_sora_clips --dry-run
+	@echo ""
+	@echo "✅ Dry run complete - no API calls made"
 
 # Clean generated files
 .PHONY: clean
 clean:
 	@echo "🧹 Cleaning generated files..."
-	rm -f $(OUTLINE_JSON)
-	rm -f $(SCRIPT_LONGFORM)
-	rm -f $(SHORTS_SCRIPTS)
-	rm -f $(SHOTLIST_JSON)
-	rm -f $(VOICEOVER_MP3)
-	rm -f $(VIDEO_DIR)/*.mp4
+	rm -f data/processed/outline.json
+	rm -f data/processed/script-longform.md
+	rm -f data/processed/shorts-scripts.md
+	rm -f data/processed/shotlist.json
+	rm -f audio/voiceover.mp3
+	rm -f video/*.mp4
 	@echo "✅ Clean complete"
 
 # Show pipeline status
 .PHONY: status
 status:
-	@echo "📊 Pipeline Status"
-	@echo "=================="
+	@echo "📊 Pipeline Status: Shai-Hulud 2025"
+	@echo "════════════════════════════════════════════"
 	@echo ""
-	@echo "Source Documents:"
-	@[ -f $(PARADIGM_DOC) ] && echo "  ✅ $(PARADIGM_DOC)" || echo "  ❌ $(PARADIGM_DOC) (MISSING)"
-	@[ -f $(INTEL_NOTES) ] && echo "  ✅ $(INTEL_NOTES)" || echo "  ⚠️  $(INTEL_NOTES) (optional)"
+	@echo "📄 Source Documents:"
+	@[ -f docs/shai-hulud-paradigm.md ] && echo "  ✅ docs/shai-hulud-paradigm.md" || echo "  ❌ docs/shai-hulud-paradigm.md (MISSING)"
+	@[ -f data/raw/intel-links.md ] && echo "  ✅ data/raw/intel-links.md" || echo "  ⚠️  data/raw/intel-links.md"
 	@echo ""
-	@echo "Generated Outputs:"
-	@[ -f $(OUTLINE_JSON) ] && echo "  ✅ outline.json" || echo "  ⬜ outline.json"
-	@[ -f $(SCRIPT_LONGFORM) ] && echo "  ✅ script-longform.md" || echo "  ⬜ script-longform.md"
-	@[ -f $(SHORTS_SCRIPTS) ] && echo "  ✅ shorts-scripts.md" || echo "  ⬜ shorts-scripts.md"
-	@[ -f $(SHOTLIST_JSON) ] && echo "  ✅ shotlist.json" || echo "  ⬜ shotlist.json"
-	@[ -f $(VOICEOVER_MP3) ] && echo "  ✅ voiceover.mp3" || echo "  ⬜ voiceover.mp3"
+	@echo "🔧 Configuration:"
+	@[ -f .env ] && echo "  ✅ .env file exists" || echo "  ❌ .env file missing (run: make setup-env)"
 	@echo ""
-	@echo "Video Clips:"
-	@ls -1 $(VIDEO_DIR)/*.mp4 2>/dev/null | wc -l | xargs -I {} echo "  {} clips generated"
+	@echo "📊 Generated Content:"
+	@[ -f data/processed/outline.json ] && echo "  ✅ outline.json" || echo "  ⬜ outline.json (make outline)"
+	@[ -f data/processed/script-longform.md ] && echo "  ✅ script-longform.md" || echo "  ⬜ script-longform.md (make script)"
+	@[ -f data/processed/shorts-scripts.md ] && echo "  ✅ shorts-scripts.md" || echo "  ⬜ shorts-scripts.md (make shorts)"
+	@[ -f data/processed/shotlist.json ] && echo "  ✅ shotlist.json" || echo "  ⬜ shotlist.json (make shotlist)"
+	@echo ""
+	@echo "🎵 Audio:"
+	@[ -f audio/voiceover.mp3 ] && echo "  ✅ voiceover.mp3" || echo "  ⬜ voiceover.mp3 (make audio)"
+	@echo ""
+	@echo "🎬 Video Clips:"
+	@ls -1 video/*.mp4 2>/dev/null | wc -l | xargs -I {} echo "  {} clips in video/"
+	@echo ""
+	@echo "════════════════════════════════════════════"
