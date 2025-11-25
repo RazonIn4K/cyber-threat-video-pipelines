@@ -6,41 +6,29 @@ CAMPAIGN_DIR := $(shell pwd)
 SCRIPTS_DIR := $(CAMPAIGN_DIR)/scripts
 PYTHON := python3
 
-# Default target
 .PHONY: all
 all: help
 
 # Help target
 .PHONY: help
 help:
-	@echo "╔══════════════════════════════════════════════════════════════════╗"
-	@echo "║       Shai-Hulud 2025 Campaign - Video Pipeline Makefile        ║"
-	@echo "╠══════════════════════════════════════════════════════════════════╣"
-	@echo "║  Setup:                                                          ║"
-	@echo "║    make install      - Install Python dependencies               ║"
-	@echo "║    make setup-env    - Create .env file from template            ║"
-	@echo "║                                                                  ║"
-	@echo "║  Pipeline Steps (run in order):                                  ║"
-	@echo "║    make outline      - Generate video outline from threat doc    ║"
-	@echo "║    make script       - Generate long-form script from outline    ║"
-	@echo "║    make shorts       - Generate YouTube Shorts scripts           ║"
-	@echo "║    make shotlist     - Generate Sora 2 shotlist from script      ║"
-	@echo "║    make audio        - Generate ElevenLabs voiceover             ║"
-	@echo "║    make sora         - Generate Sora 2 video clips               ║"
-	@echo "║                                                                  ║"
-	@echo "║  Workflow:                                                       ║"
-	@echo "║    make content      - Run outline → script → shorts → shotlist  ║"
-	@echo "║    make media        - Run audio → sora                          ║"
-	@echo "║    make pipeline     - Run full pipeline (all steps)             ║"
-	@echo "║                                                                  ║"
-	@echo "║  Testing:                                                        ║"
-	@echo "║    make dry-run      - Preview all steps without API calls       ║"
-	@echo "║                                                                  ║"
-	@echo "║  Utilities:                                                      ║"
-	@echo "║    make clean        - Remove generated files                    ║"
-	@echo "║    make status       - Show pipeline status                      ║"
-	@echo "║    make validate     - Check configuration                       ║"
-	@echo "╚══════════════════════════════════════════════════════════════════╝"
+	@printf "\nShai-Hulud 2025 Campaign - Pipeline Targets\n"
+	@printf "  make install            Install Python dependencies\n"
+	@printf "  make setup-env          Create .env from template (optional when using Doppler)\n"
+	@printf "  make validate           Sanity-check required secrets/files\n"
+	@printf "  make status             Show pipeline status\n"
+	@printf "  make dry-run            Preview prompts without API calls\n"
+	@printf "  make outline            Generate video outline\n"
+	@printf "  make script             Generate long-form script\n"
+	@printf "  make shorts             Generate YouTube Shorts scripts\n"
+	@printf "  make shotlist           Generate Sora 2 shotlist\n"
+	@printf "  make audio              Generate ElevenLabs voiceover\n"
+	@printf "  make sora               Generate Sora 2 video clips\n"
+	@printf "  make content            outline → script → shorts → shotlist\n"
+	@printf "  make media              audio → sora\n"
+	@printf "  make pipeline           Run full pipeline (content + media)\n"
+	@printf "  make clean              Remove generated files\n"
+	@printf "  make scaffold-campaign  Clone this campaign: NAME=<new_campaign>\n\n"
 
 # Setup targets
 .PHONY: install
@@ -63,7 +51,8 @@ setup-env:
 .PHONY: validate
 validate:
 	@echo "🔍 Validating configuration..."
-	@$(PYTHON) -c "from scripts.config import get_config; c = get_config(); errors = c.validate(); print('\n'.join(errors) if errors else '✅ Configuration valid')"
+	@$(PYTHON) -c "from scripts.config import get_config; import sys; c=get_config(); issues=c.validate(); paths=[c.prompt_outline,c.prompt_script,c.prompt_shorts,c.prompt_shotlist,c.prompt_voice_style,c.paradigm_doc,c.intel_links]; issues+= [f'Missing file: {p}' for p in paths if not p.exists()]; [p.mkdir(parents=True, exist_ok=True) for p in (c.data_processed_dir,c.audio_dir,c.video_dir)]; \
+print('❌ Issues found:\\n'+'\\n'.join('- '+i for i in issues) if issues else '✅ Configuration valid'); sys.exit(1 if issues else 0)"
 
 # Step 1: Generate outline from threat doc
 .PHONY: outline
@@ -186,3 +175,16 @@ status:
 	@ls -1 video/*.mp4 2>/dev/null | wc -l | xargs -I {} echo "  {} clips in video/"
 	@echo ""
 	@echo "════════════════════════════════════════════"
+
+# Scaffold a new campaign folder
+.PHONY: scaffold-campaign
+scaffold-campaign:
+	@test -n "$(NAME)" || (echo "NAME is required (e.g., make scaffold-campaign NAME=log4shell-retro)" && exit 1)
+	@src_dir="$(CAMPAIGN_DIR)"; dst_dir="$$(cd "$(CAMPAIGN_DIR)/.." && pwd)/$(NAME)"; \
+	if [ -e "$$dst_dir" ]; then echo "Target already exists: $$dst_dir"; exit 1; fi; \
+	cp -R "$$src_dir" "$$dst_dir"; \
+	rm -f "$$dst_dir/.env"; \
+	find "$$dst_dir/data/processed" "$$dst_dir/audio" "$$dst_dir/video" -type f ! -name ".gitkeep" -delete 2>/dev/null || true; \
+	find "$$dst_dir/data/processed" "$$dst_dir/audio" "$$dst_dir/video" -mindepth 1 -type d -empty -delete 2>/dev/null || true; \
+	{ printf "NOTE: Update docs/shai-hulud-paradigm.md, prompts/*, and README for the new threat\n\n"; cat "$$dst_dir/README.md"; } > "$$dst_dir/README.tmp" && mv "$$dst_dir/README.tmp" "$$dst_dir/README.md"; \
+	echo "✅ Scaffolded new campaign at $$dst_dir"

@@ -8,16 +8,20 @@ Usage:
 """
 
 import re
-import click
 from pathlib import Path
+
+import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress
 
 from elevenlabs import ElevenLabs
+
 from config import get_config
+from logging_utils import get_logger
 
 console = Console()
+log = get_logger(__name__)
 
 
 def clean_script_for_tts(script_text: str) -> str:
@@ -43,12 +47,13 @@ def generate_audio(
     script_text: str,
     voice_id: str,
     api_key: str,
-    output_path: Path
+    output_path: Path,
+    model_id: str,
 ) -> None:
     """Call ElevenLabs API to generate audio."""
-    
+
     client = ElevenLabs(api_key=api_key)
-    
+
     console.print("[bold blue]Calling ElevenLabs API...[/bold blue]")
     console.print(f"  Voice ID: {voice_id}")
     console.print(f"  Script length: {len(script_text)} characters")
@@ -84,24 +89,32 @@ def generate_audio(
             task = progress.add_task("Generating audio...", total=len(chunks))
             
             for i, chunk in enumerate(chunks):
-                audio = client.text_to_speech.convert(
-                    voice_id=voice_id,
-                    text=chunk,
-                    model_id="eleven_multilingual_v2"
-                )
-                audio_segments.append(b"".join(audio))
+                try:
+                    audio = client.text_to_speech.convert(
+                        voice_id=voice_id,
+                        text=chunk,
+                        model_id=model_id
+                    )
+                    audio_segments.append(b"".join(audio))
+                except Exception as exc:  # noqa: BLE001
+                    log.exception("ElevenLabs chunk generation failed")
+                    raise click.ClickException(f"ElevenLabs API failed: {exc}") from exc
                 progress.update(task, advance=1)
         
         # Concatenate audio
         full_audio = b"".join(audio_segments)
         
     else:
-        audio = client.text_to_speech.convert(
-            voice_id=voice_id,
-            text=script_text,
-            model_id="eleven_multilingual_v2"
-        )
-        full_audio = b"".join(audio)
+        try:
+            audio = client.text_to_speech.convert(
+                voice_id=voice_id,
+                text=script_text,
+                model_id=model_id
+            )
+            full_audio = b"".join(audio)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("ElevenLabs API call failed")
+            raise click.ClickException(f"ElevenLabs API failed: {exc}") from exc
     
     # Save audio
     output_path.write_bytes(full_audio)
@@ -145,8 +158,10 @@ def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run
         console.print("[yellow]Set ELEVENLABS_VOICE_ID or use --voice-id[/yellow]")
         raise click.Abort()
     
-    if not script_path.exists():
-        console.print(f"[red]Error: Script not found: {script_path}[/red]")
+    missing_files = config.require_files([script_path])
+    if missing_files:
+        for path in missing_files:
+            console.print(f"[red]Missing file: {path}[/red]")
         raise click.Abort()
     
     console.print(Panel.fit(
@@ -165,6 +180,7 @@ def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run
         console.print("\n[yellow]DRY RUN - Cleaned script preview:[/yellow]")
         console.print(cleaned_script[:1000] + "...")
         console.print(f"\n[yellow]Total characters: {len(cleaned_script)}[/yellow]")
+        console.print(f"Model: {config.elevenlabs_model}")
         return
     
     # Generate audio
@@ -173,7 +189,8 @@ def main(script: Path | None, output: Path | None, voice_id: str | None, dry_run
         cleaned_script,
         voice_id,
         config.elevenlabs_api_key,
-        output
+        output,
+        config.elevenlabs_model
     )
     
     file_size = output.stat().st_size / (1024 * 1024)  # MB

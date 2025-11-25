@@ -1,0 +1,5 @@
+{
+  "name": "Cyber Threat Video Studio",
+  "description": "A DevSecOps video generation platform dashboard managing campaigns, scripts, and media assets.",
+  "requestFramePermissions": []
+}

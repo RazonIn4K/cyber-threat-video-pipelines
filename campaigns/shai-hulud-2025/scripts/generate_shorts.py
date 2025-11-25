@@ -7,28 +7,33 @@ Usage:
     python generate_shorts.py --script custom-script.md --output shorts.md
 """
 
-import click
 from pathlib import Path
+
+import click
+import google.generativeai as genai
 from rich.console import Console
 from rich.panel import Panel
 
-import google.generativeai as genai
 from config import get_config
+from logging_utils import get_logger
 
 console = Console()
+log = get_logger(__name__)
 
 
 def generate_shorts(
     script_text: str,
     prompt_template: str,
     api_key: str,
-    model: str = "gemini-2.0-flash"
+    model: str,
+    temperature: float,
+    top_p: float,
 ) -> str:
     """Call Gemini API to generate Shorts scripts."""
-    
+
     genai.configure(api_key=api_key)
     model_instance = genai.GenerativeModel(model)
-    
+
     full_prompt = f"""{prompt_template}
 
 ---
@@ -41,17 +46,22 @@ def generate_shorts(
 
 Now generate 3-5 YouTube Shorts scripts. Each should be 45-60 seconds when read aloud.
 """
-    
-    console.print("[bold blue]Calling Gemini API for Shorts generation...[/bold blue]")
-    
-    response = model_instance.generate_content(
-        full_prompt,
-        generation_config=genai.GenerationConfig(
-            temperature=0.9,
-            max_output_tokens=4000
+
+    log.info("Calling Gemini API for shorts", extra={"model": model})
+
+    try:
+        response = model_instance.generate_content(
+            full_prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=temperature,
+                top_p=top_p,
+                max_output_tokens=4000,
+            ),
         )
-    )
-    
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Gemini API call failed")
+        raise click.ClickException(f"Gemini API call failed: {exc}") from exc
+
     return response.text
 
 
@@ -72,49 +82,54 @@ Now generate 3-5 YouTube Shorts scripts. Each should be 45-60 seconds when read 
 )
 def main(script: Path | None, output: Path | None, dry_run: bool):
     """Generate YouTube Shorts scripts."""
-    
+
     config = get_config()
-    
+
     script_path = script or config.script_longform
     output = output or config.shorts_scripts
-    
+
     if not config.gemini_api_key and not dry_run:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
-    
-    if not script_path.exists():
-        console.print(f"[red]Error: Script not found: {script_path}[/red]")
-        console.print("[yellow]Run generate_script.py first[/yellow]")
+
+    missing_files = config.require_files([script_path, config.prompt_shorts])
+    if missing_files:
+        for path in missing_files:
+            console.print(f"[red]Missing file: {path}[/red]")
+        console.print("[yellow]Run generate_script.py first if script is missing[/yellow]")
         raise click.Abort()
-    
+
     console.print(Panel.fit(
         f"[bold]Generate YouTube Shorts[/bold]\n\n"
         f"Script: {script_path}\n"
         f"Output: {output}",
         title="Shai-Hulud Pipeline"
     ))
-    
+
     script_text = script_path.read_text(encoding="utf-8")
     prompt_template = config.prompt_shorts.read_text(encoding="utf-8")
-    
+
     if dry_run:
         console.print(f"\n[yellow]DRY RUN - Script length: {len(script_text)} chars[/yellow]")
+        console.print(f"Model: {config.gemini_model}, temp: {config.gemini_temperature}, top_p: {config.gemini_top_p}")
         return
-    
+
     # Generate
     config.ensure_dirs()
     shorts = generate_shorts(
         script_text,
         prompt_template,
         config.gemini_api_key,
-        config.gemini_model
+        config.gemini_model,
+        config.gemini_temperature,
+        config.gemini_top_p,
     )
-    
+
     output.write_text(shorts, encoding="utf-8")
-    
+
     # Count shorts
     short_count = shorts.count("SHORT #") or shorts.count("--- SHORT")
-    
+
     console.print(f"\n[green]✓ Shorts scripts saved to: {output}[/green]")
     console.print(f"  Shorts generated: ~{max(short_count, 3)}")
 

@@ -9,23 +9,28 @@ Usage:
 
 import json
 import time
-import click
 from pathlib import Path
+
+import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress
 
 from openai import OpenAI
+
 from config import get_config
+from logging_utils import get_logger
 
 console = Console()
+log = get_logger(__name__)
 
 
 def generate_sora_clip(
     client: OpenAI,
     scene: dict,
     output_dir: Path,
-    resolution: str = "1080p"
+    resolution: str = "1080p",
+    model: str = "sora",
 ) -> Path | None:
     """Generate a single Sora clip from a scene definition."""
     
@@ -37,13 +42,14 @@ def generate_sora_clip(
         console.print(f"[yellow]Skipping {scene_id}: No prompt[/yellow]")
         return None
     
+    log.info("Generating scene", extra={"scene": scene_id, "duration": duration})
     console.print(f"[blue]Generating: {scene_id} ({duration}s)[/blue]")
     
     try:
         # Create video generation request
         # Note: Sora 2 API is accessed through OpenAI's responses.create
         response = client.responses.create(
-            model="sora",
+            model=model,
             input=prompt,
             # Sora-specific parameters
             n=1,
@@ -62,18 +68,29 @@ def generate_sora_clip(
             output_path = output_dir / f"{scene_id}.mp4"
             
             # Download using httpx
-            import httpx
-            with httpx.Client() as http:
-                video_response = http.get(video_url)
-                output_path.write_bytes(video_response.content)
+            try:
+                import httpx
+            except Exception as exc:  # noqa: BLE001
+                log.exception("httpx import failed")
+                raise click.ClickException("httpx is required to download videos") from exc
+
+            try:
+                with httpx.Client() as http:
+                    video_response = http.get(video_url, timeout=60)
+                    video_response.raise_for_status()
+                    output_path.write_bytes(video_response.content)
+            except Exception as exc:  # noqa: BLE001
+                log.exception("Download failed for %s", scene_id)
+                raise click.ClickException(f"Failed to download {scene_id}: {exc}") from exc
             
             return output_path
         else:
             console.print(f"[red]Generation failed for {scene_id}: {response.status}[/red]")
             return None
             
-    except Exception as e:
-        console.print(f"[red]Error generating {scene_id}: {e}[/red]")
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Error generating scene %s", scene_id)
+        console.print(f"[red]Error generating {scene_id}: {exc}[/red]")
         return None
 
 
@@ -109,8 +126,10 @@ def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: 
         console.print("[red]Error: OPENAI_API_KEY not set[/red]")
         raise click.Abort()
     
-    if not shotlist_path.exists():
-        console.print(f"[red]Error: Shotlist not found: {shotlist_path}[/red]")
+    missing_files = config.require_files([shotlist_path])
+    if missing_files:
+        for path in missing_files:
+            console.print(f"[red]Missing file: {path}[/red]")
         console.print("[yellow]Run generate_shotlist.py first[/yellow]")
         raise click.Abort()
     
@@ -118,12 +137,16 @@ def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: 
         f"[bold]Generate Sora 2 Video Clips[/bold]\n\n"
         f"Shotlist: {shotlist_path}\n"
         f"Output: {output_dir}\n"
-        f"Resolution: {config.video_resolution}",
+        f"Resolution: {config.video_resolution}\n"
+        f"Model: {config.sora_model}",
         title="Shai-Hulud Pipeline"
     ))
     
     # Load shotlist
-    shotlist_data = json.loads(shotlist_path.read_text(encoding="utf-8"))
+    try:
+        shotlist_data = json.loads(shotlist_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"Invalid shotlist JSON at {shotlist_path}: {exc}") from exc
     scenes = shotlist_data.get("scenes", [])
     
     # Filter scenes if specific ones requested
@@ -160,7 +183,8 @@ def main(shotlist: Path | None, output_dir: Path | None, scene: tuple, dry_run: 
                 client,
                 scene_data,
                 output_dir,
-                config.video_resolution
+                config.video_resolution,
+                config.sora_model,
             )
             
             if result:

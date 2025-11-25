@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-background text-gray-100 font-sans;
+}
+
+a {
+  @apply text-primary;
+}
+
+.card {
+  @apply bg-background-card border border-border/60 rounded-xl shadow-card;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all;
+}
+
+.btn-primary {
+  @apply btn bg-primary text-black hover:bg-primary-dark shadow-glow;
+}
+
+.btn-ghost {
+  @apply btn bg-white/5 text-gray-100 hover:bg-white/10 border border-border;
+}
+
+.table-head {
+  @apply text-xs uppercase tracking-wide text-muted;
+}

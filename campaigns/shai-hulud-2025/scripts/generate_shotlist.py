@@ -8,15 +8,18 @@ Usage:
 """
 
 import json
-import click
 from pathlib import Path
+
+import click
+import google.generativeai as genai
 from rich.console import Console
 from rich.panel import Panel
 
-import google.generativeai as genai
 from config import get_config
+from logging_utils import get_logger
 
 console = Console()
+log = get_logger(__name__)
 
 
 def generate_shotlist(
@@ -24,13 +27,15 @@ def generate_shotlist(
     prompt_template: str,
     aspect_ratio: str,
     api_key: str,
-    model: str = "gemini-2.0-flash"
+    model: str,
+    temperature: float,
+    top_p: float,
 ) -> dict:
     """Call Gemini API to generate Sora shotlist."""
-    
+
     genai.configure(api_key=api_key)
     model_instance = genai.GenerativeModel(model)
-    
+
     full_prompt = f"""{prompt_template}
 
 ---
@@ -46,23 +51,28 @@ def generate_shotlist(
 
 Now generate the Sora 2 shotlist JSON. Output ONLY valid JSON, no markdown.
 """
-    
-    console.print("[bold blue]Calling Gemini API for shotlist generation...[/bold blue]")
-    
-    response = model_instance.generate_content(
-        full_prompt,
-        generation_config=genai.GenerationConfig(
-            temperature=0.8,
-            response_mime_type="application/json"
+
+    log.info("Calling Gemini API for shotlist", extra={"model": model})
+
+    try:
+        response = model_instance.generate_content(
+            full_prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=temperature,
+                top_p=top_p,
+                response_mime_type="application/json",
+            ),
         )
-    )
-    
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Gemini API call failed")
+        raise click.ClickException(f"Gemini API call failed: {exc}") from exc
+
     try:
         shotlist = json.loads(response.text)
-    except json.JSONDecodeError as e:
-        console.print(f"[red]Failed to parse JSON: {e}[/red]")
-        raise
-    
+    except json.JSONDecodeError as exc:
+        console.print(f"[red]Failed to parse JSON: {exc}[/red]")
+        raise click.ClickException("Gemini response was not valid JSON") from exc
+
     return shotlist
 
 
@@ -88,20 +98,22 @@ Now generate the Sora 2 shotlist JSON. Output ONLY valid JSON, no markdown.
 )
 def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: bool):
     """Generate Sora 2 shotlist from script."""
-    
+
     config = get_config()
-    
+
     script_path = script or config.script_longform
     output = output or config.shotlist_json
-    
+
     if not config.gemini_api_key and not dry_run:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         raise click.Abort()
-    
-    if not script_path.exists():
-        console.print(f"[red]Error: Script not found: {script_path}[/red]")
+
+    missing_files = config.require_files([script_path, config.prompt_shotlist])
+    if missing_files:
+        for path in missing_files:
+            console.print(f"[red]Missing file: {path}[/red]")
         raise click.Abort()
-    
+
     console.print(Panel.fit(
         f"[bold]Generate Sora 2 Shotlist[/bold]\n\n"
         f"Script: {script_path}\n"
@@ -109,15 +121,16 @@ def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: b
         f"Output: {output}",
         title="Shai-Hulud Pipeline"
     ))
-    
+
     script_text = script_path.read_text(encoding="utf-8")
     prompt_template = config.prompt_shotlist.read_text(encoding="utf-8")
-    
+
     if dry_run:
         broll_count = script_text.count("[B-ROLL")
         console.print(f"\n[yellow]DRY RUN - B-roll markers found: {broll_count}[/yellow]")
+        console.print(f"Model: {config.gemini_model}, temp: {config.gemini_temperature}, top_p: {config.gemini_top_p}")
         return
-    
+
     # Generate
     config.ensure_dirs()
     shotlist = generate_shotlist(
@@ -125,11 +138,13 @@ def main(script: Path | None, output: Path | None, aspect_ratio: str, dry_run: b
         prompt_template,
         aspect_ratio,
         config.gemini_api_key,
-        config.gemini_model
+        config.gemini_model,
+        config.gemini_temperature,
+        config.gemini_top_p,
     )
-    
+
     output.write_text(json.dumps(shotlist, indent=2), encoding="utf-8")
-    
+
     scene_count = len(shotlist.get("scenes", []))
     console.print(f"\n[green]✓ Shotlist saved to: {output}[/green]")
     console.print(f"  Scenes: {scene_count}")
