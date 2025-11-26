@@ -10,6 +10,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { Switch } from '../components/ui/Switch';
 import toast from 'react-hot-toast';
 import { useLogsStore } from '../stores/logsStore';
+import { runApi } from '../api/run';
 
 const CampaignDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +49,25 @@ const CampaignDetail: React.FC = () => {
   const handleStop = () => {
     stopStreaming();
     toast('Stopped current run');
+  };
+
+  const handleFullPipeline = async () => {
+    if (!id) {
+      toast.error('Campaign ID is missing!');
+      return;
+    }
+
+    try {
+      useLogsStore.getState().addLog({ message: 'Starting full pipeline', type: 'info' });
+      const res = await runApi.pipeline({ campaignId: id, simulate });
+      if (res.ok) {
+        toast.success('Full pipeline completed');
+      } else {
+        toast.error('Full pipeline failed');
+      }
+    } catch (error) {
+      toast.error('Full pipeline failed');
+    }
   };
 
   if (isLoading || !campaign) return <Skeleton className="h-40 w-full" />;
@@ -127,11 +147,14 @@ const CampaignDetail: React.FC = () => {
                         <div className="flex items-center gap-3">
                           <label className="text-sm font-medium text-gray-300">Simulate</label>
                           <Switch checked={simulate} onChange={setSimulate} />
+                          <Button variant="secondary" size="sm" onClick={handleFullPipeline} disabled={isStreaming}>
+                            Run Full Pipeline
+                          </Button>
                           {isStreaming && (
                             <Button variant="ghost" size="sm" onClick={handleStop}>Stop</Button>
                           )}
                         </div>
-                     </div>
+                      </div>
                      <div className="divide-y divide-border">
                         {/* Run Outline */}
                         <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">

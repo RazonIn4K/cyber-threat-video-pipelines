@@ -112,7 +112,14 @@ export const runApi = {
       usePipelineStore.getState().setStatus('running', 'Pipeline starting');
 
       if (apiBase) {
-        const steps: Array<'outline' | 'script' | 'media'> = ['outline', 'script', 'media'];
+        const steps: Array<'outline' | 'script' | 'shorts' | 'shotlist' | 'audio' | 'sora'> = [
+          'outline',
+          'script',
+          'shorts',
+          'shotlist',
+          'audio',
+          'sora',
+        ];
         let ok = true;
         const runOptions: RunOptions = { 
           campaignId: parsed.campaignId ?? options.campaignId,
