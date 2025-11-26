@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "start:doppler:dev": "doppler run --project local-mac-work --config dev -- node index.js",
+    "start:doppler:dev_personal": "doppler run --project local-mac-work --config dev_personal -- node index.js"
   },
   "dependencies": {
     "body-parser": "^1.20.3",
