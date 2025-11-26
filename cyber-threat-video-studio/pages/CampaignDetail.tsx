@@ -7,12 +7,14 @@ import { Play, FileText, CheckCircle2, Clock, MapPin, Key, Network, Upload, File
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { Switch } from '../components/ui/Switch';
 import { runApi } from '../api/run';
 import toast from 'react-hot-toast';
 
 const CampaignDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('overview');
+  const [simulate, setSimulate] = useState(true);
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', id],
@@ -26,9 +28,15 @@ const CampaignDetail: React.FC = () => {
   ];
 
   const runStep = useMutation({
-    mutationFn: (step: 'outline' | 'script' | 'media') => runApi[step](),
-    onSuccess: () => toast.success('Step triggered'),
-    onError: () => toast.error('Step failed'),
+    mutationFn: (step: 'outline' | 'script' | 'media') => {
+      if (!id) {
+        toast.error('Campaign ID is missing!');
+        return Promise.reject('Campaign ID is missing');
+      }
+      return runApi[step]({ campaignId: id, simulate });
+    },
+    onSuccess: (data, step) => toast.success(`Successfully triggered step: ${step}`),
+    onError: (error, step) => toast.error(`Failed to trigger step: ${step}`),
   });
 
   if (isLoading || !campaign) return <Skeleton className="h-40 w-full" />;
@@ -103,8 +111,12 @@ const CampaignDetail: React.FC = () => {
                 
                 {/* Actions Panel (Always visible in this mock for layout demo) */}
                 <Card className="overflow-hidden">
-                     <div className="p-6 border-b border-border">
+                     <div className="p-6 border-b border-border flex justify-between items-center">
                         <h2 className="text-xl font-bold text-white">Campaign Actions</h2>
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-300">Simulate</label>
+                          <Switch checked={simulate} onChange={setSimulate} />
+                        </div>
                      </div>
                      <div className="divide-y divide-border">
                         {/* Run Outline */}
@@ -139,11 +151,11 @@ const CampaignDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Run Shorts */}
+                        {/* Run Media */}
                         <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
                              <div className="flex items-center gap-4">
                                 <Button variant="ghost" icon={<Play size={16} />} onClick={() => runStep.mutate('media')}>
-                                    Run Shorts
+                                    Run Media
                                 </Button>
                                 <span className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-bold">
                                     <Clock size={12} className="animate-spin" /> Running
