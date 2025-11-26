@@ -22,11 +22,11 @@ const stepToScript = {
   sora: 'generate_sora_clips.py',
 };
 
-const runPython = (campaignId, scriptName, extraArgs = []) =>
+const runPython = (campaignId, scriptName, extraArgs = [], simulate = true) =>
   new Promise((resolve) => {
     const campaignPath = path.join(campaignsDir, campaignId);
     const scriptPath = path.join(campaignPath, 'scripts', scriptName);
-    const args = [scriptPath, '--simulate', ...extraArgs];
+    const args = [scriptPath, ...(simulate ? ['--simulate'] : []), ...extraArgs];
     const child = spawn('python3', args, { cwd: campaignPath });
 
     let stdout = '';
@@ -64,9 +64,11 @@ app.get('/campaigns/:id/media', (req, res) => {
 app.post('/run/:step', async (req, res) => {
   const step = req.params.step;
   const campaignId = req.body?.campaignId || defaultCampaign;
+  const simulateEnv = process.env.SIMULATE !== 'false';
+  const simulate = typeof req.body?.simulate === 'boolean' ? req.body.simulate : simulateEnv;
   const scriptName = stepToScript[step];
   if (!scriptName) return res.status(400).json({ ok: false, error: 'unknown step' });
-  const result = await runPython(campaignId, scriptName);
+  const result = await runPython(campaignId, scriptName, [], simulate);
   res.json(result);
 });
 

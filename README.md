@@ -69,13 +69,15 @@ Default Vite env vars (set in `.env.local`):
 ```bash
 cd server
 npm install
-npm start                # starts on :3000, exposes /run/* using --simulate by default
+npm start                # starts on :3000, exposes /run/* using --simulate by default (SIMULATE=true)
 # or run with Doppler configs:
 npm run start:doppler:dev_personal
 npm run start:doppler:dev
 ```
 
 Then set `VITE_API_BASE=http://localhost:3000` in `cyber-threat-video-studio/.env.local` and rebuild the UI.
+
+To hit real APIs instead of simulation, start the server with `SIMULATE=false` (env var) and ensure `campaigns/shai-hulud-2025/.env` has valid API keys (or run via Doppler).
 
 ## Adding New Campaigns
 
