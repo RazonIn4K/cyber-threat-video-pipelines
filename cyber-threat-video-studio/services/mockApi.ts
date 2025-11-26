@@ -1,4 +1,4 @@
-import { Campaign, MediaAsset, SecretConfig, ActivityLog, TimelineEvent } from '../types';
+import { Campaign, MediaAsset, SecretConfig, ActivityLog, TimelineEvent, PublishTarget, PublishRequest, PublishResult } from '../types';
 
 // Mock Data
 const campaigns: Campaign[] = [
@@ -38,10 +38,24 @@ const timeline: TimelineEvent[] = [
     { id: '4', title: 'Data Exfiltration', timestamp: '2024-05-12 02:45 UTC', description: 'Stolen credentials and data sent to C2 via webhook.', icon: 'upload_file', type: 'exfiltration' },
 ];
 
+const publishTargets: PublishTarget[] = [
+  { id: 'target-wordpress', name: 'cs-learning.me (WordPress)', type: 'wordpress', url: 'https://cs-learning.me', description: 'Main learning site' },
+  { id: 'target-static', name: 'csbrain.ai (Static)', type: 'static-site', url: 'https://csbrain.ai', description: 'Landing + SEO static site' },
+  { id: 'target-promptdef', name: 'promptdefenders.com (Static)', type: 'static-site', url: 'https://promptdefenders.com', description: 'Prompt packs + artifacts' },
+  { id: 'target-youtube', name: 'YouTube Channel', type: 'youtube', url: 'https://youtube.com/@csbrain', description: 'Video publishing' },
+];
+
 export const MockApi = {
   getCampaigns: async () => new Promise<Campaign[]>(resolve => setTimeout(() => resolve(campaigns), 500)),
   getMediaAssets: async () => new Promise<MediaAsset[]>(resolve => setTimeout(() => resolve(mediaAssets), 500)),
   getSecrets: async () => new Promise<SecretConfig[]>(resolve => setTimeout(() => resolve(secrets), 500)),
   getLogs: async () => new Promise<ActivityLog[]>(resolve => setTimeout(() => resolve(logs), 500)),
   getTimeline: async (id: string) => new Promise<TimelineEvent[]>(resolve => setTimeout(() => resolve(timeline), 500)),
+  getPublishTargets: async () => new Promise<PublishTarget[]>(resolve => setTimeout(() => resolve(publishTargets), 250)),
+  publish: async (input: PublishRequest): Promise<PublishResult> =>
+    new Promise((resolve) =>
+      setTimeout(() =>
+        resolve({ id: crypto.randomUUID(), status: 'success', message: `Published ${input.campaignId} to ${input.targetId}` }),
+      400),
+    ),
 };

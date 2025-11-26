@@ -38,8 +38,18 @@ export const mediaApi = {
   },
 
   create: async (input: Partial<MediaAsset>): Promise<MediaAsset> => {
-    const parsed = mediaSchema.parse(input);
-    const asset: MediaAsset = { ...parsed, id: parsed.id ?? crypto.randomUUID() };
+    const parsed = mediaSchema.parse(input || {});
+    const asset: MediaAsset = {
+      id: parsed.id ?? crypto.randomUUID(),
+      campaignId: parsed.campaignId,
+      title: parsed.title,
+      description: parsed.description,
+      type: parsed.type,
+      size: parsed.size,
+      generatedAt: parsed.generatedAt,
+      duration: parsed.duration,
+      thumbnailUrl: parsed.thumbnailUrl,
+    };
     await delay(200);
     useMediaStore.getState().addMedia(asset);
     return asset;

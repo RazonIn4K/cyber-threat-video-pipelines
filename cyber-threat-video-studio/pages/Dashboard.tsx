@@ -48,7 +48,7 @@ const Dashboard: React.FC = () => {
           <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
           <p className="text-gray-400">Welcome back, DevSec Team! Here is your system overview.</p>
         </div>
-        <Button icon={<Play size={16} />} onClick={() => pipelineMutation.mutate()} loading={pipelineMutation.isLoading}>
+        <Button icon={<Play size={16} />} onClick={() => pipelineMutation.mutate()} loading={pipelineMutation.isPending}>
           Run Pipeline
         </Button>
       </div>

@@ -1,7 +1,11 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  content: ['./index.html', './**/*.{ts,tsx,js,jsx}'],
+  content: [
+    './index.html',
+    './{api,components,pages,stores,services,utils}/**/*.{ts,tsx}',
+    './types.ts',
+  ],
   darkMode: 'class',
   theme: {
     extend: {
@@ -47,8 +51,8 @@ const config: Config = {
       },
       keyframes: {
         'fade-in': {
-          '0%': { opacity: 0, transform: 'translateY(4px)' },
-          '100%': { opacity: 1, transform: 'translateY(0)' },
+          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

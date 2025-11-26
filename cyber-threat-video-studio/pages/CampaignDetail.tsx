@@ -173,7 +173,7 @@ const CampaignDetail: React.FC = () => {
                                 <span className="text-gray-300">AWS</span>
                             </div>
                         </div>
-                    </div>
+                    </Card>
 
                     <Card className="p-6">
                         <h2 className="text-lg font-bold text-white mb-4">Data Stolen</h2>
@@ -186,7 +186,7 @@ const CampaignDetail: React.FC = () => {
                                  </span>
                              ))}
                          </div>
-                    </div>
+                    </Card>
                 </div>
 
             </div>

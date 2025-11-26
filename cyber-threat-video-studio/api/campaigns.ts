@@ -6,7 +6,7 @@ import { Campaign } from '../types';
 const campaignSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(3),
-  status: z.string(),
+  status: z.enum(['Active', 'Completed', 'In Progress', 'Failed', 'Queued']).default('Queued'),
   progress: z.string().optional().default(''),
   lastUpdated: z.string().optional().default('just now'),
   type: z.string().optional().default('Security Education'),
@@ -46,13 +46,15 @@ export const campaignsApi = {
   },
 
   create: async (input: Partial<Campaign>): Promise<Campaign> => {
-    const parsed = campaignSchema.parse(input);
+    const parsed = campaignSchema.parse(input || {});
     const campaign: Campaign = {
-      ...parsed,
       id: parsed.id ?? crypto.randomUUID(),
-      lastUpdated: 'just now',
+      name: parsed.name,
+      status: parsed.status,
       progress: parsed.progress ?? 'Queued',
-      status: parsed.status ?? 'Queued',
+      lastUpdated: 'just now',
+      type: parsed.type ?? 'Security Education',
+      description: parsed.description ?? '',
     };
     await delay(200);
     useCampaignStore.getState().addCampaign(campaign);

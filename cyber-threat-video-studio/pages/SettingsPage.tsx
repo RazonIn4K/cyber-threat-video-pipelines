@@ -47,7 +47,7 @@ const SettingsPage: React.FC = () => {
                 {secret.status}
               </Badge>
               {secret.status !== 'Loaded' && (
-                <Button variant="ghost" onClick={() => mutation.mutate(secret.id)} loading={mutation.isLoading}>
+                <Button variant="ghost" onClick={() => mutation.mutate(secret.id)} loading={mutation.isPending}>
                   Mark Loaded
                 </Button>
               )}

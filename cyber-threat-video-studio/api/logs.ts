@@ -31,8 +31,13 @@ export const logsApi = {
     return logs.filter((l) => l.type === filter);
   },
   create: async (input: Partial<ActivityLog>): Promise<ActivityLog> => {
-    const parsed = logSchema.parse(input);
-    const log: ActivityLog = { ...parsed, id: parsed.id ?? crypto.randomUUID() };
+    const parsed = logSchema.parse(input || {});
+    const log: ActivityLog = {
+      id: parsed.id ?? crypto.randomUUID(),
+      message: parsed.message,
+      timestamp: parsed.timestamp,
+      type: parsed.type,
+    };
     await delay(100);
     useLogsStore.getState().addLog(log);
     return log;

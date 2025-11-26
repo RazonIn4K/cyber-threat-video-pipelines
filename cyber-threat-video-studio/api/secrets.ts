@@ -36,8 +36,15 @@ export const secretsApi = {
     return { ok: true };
   },
   upsert: async (input: Partial<SecretConfig>): Promise<SecretConfig> => {
-    const parsed = secretSchema.parse(input);
-    const secret: SecretConfig = { ...parsed, id: parsed.id ?? crypto.randomUUID() };
+    const parsed = secretSchema.parse(input || {});
+    const secret: SecretConfig = {
+      id: parsed.id ?? crypto.randomUUID(),
+      name: parsed.name,
+      key: parsed.key,
+      status: parsed.status,
+      maskedValue: parsed.maskedValue,
+      provider: parsed.provider,
+    };
     await delay(120);
     const existing = useSecretsStore.getState().secrets.find((s) => s.id === secret.id);
     if (existing) {

@@ -24,7 +24,7 @@ const ShotlistSync: React.FC = () => {
           <h1 className="text-2xl font-bold text-white">Shotlist Sync</h1>
           <p className="text-gray-400 text-sm">Review shots, adjust timings, and trigger Sora generation.</p>
         </div>
-        <Button onClick={() => syncMutation.mutate()} loading={syncMutation.isLoading}>
+        <Button onClick={() => syncMutation.mutate()} loading={syncMutation.isPending}>
           Run Media Sync
         </Button>
       </div>

@@ -4,7 +4,7 @@ A campaign-based repository for creating security education videos from threat i
 
 ## Overview
 
-This repository organizes video production workflows by **campaign** - each threat gets its own folder with dedicated prompts, scripts, and outputs.
+This repository organizes video production workflows by **campaign** - each threat gets its own folder with dedicated prompts, scripts, and outputs. It also includes a web-based studio UI for browsing campaigns, running pipeline steps, and reviewing media/logs.
 
 ## Repository Structure
 
@@ -19,6 +19,8 @@ cyber-threat-video-pipelines/
 │       ├── audio/           # ElevenLabs voiceovers
 │       ├── video/           # Sora 2 clips
 │       └── pipeline/        # Orchestration code
+├── cyber-threat-video-studio/ # Web UI (Vite + React + Tailwind)
+├── .github/workflows/       # CI for campaign tests + UI build
 ├── .gitignore
 └── README.md
 ```
@@ -39,15 +41,28 @@ cyber-threat-video-pipelines/
 
 ## Getting Started
 
-1. Clone the repository
-2. Navigate to a campaign folder
-3. Follow the campaign-specific README
+1) Clone the repository
+
+2) Campaign pipeline (Python)
 
 ```bash
 cd campaigns/shai-hulud-2025
 make help
 make status
 ```
+
+3) Studio UI (Vite + React)
+
+```bash
+cd cyber-threat-video-studio
+npm install
+npm run dev
+```
+
+Default Vite env vars (set in `.env.local`):
+- `VITE_API_BASE` — backend base URL (e.g., http://localhost:3000/api)
+- `VITE_APP_ENV` — label for environment (e.g., local, staging, prod)
+- `VITE_LOG_LEVEL` — optional log level for client
 
 ## Adding New Campaigns
 

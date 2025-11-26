@@ -46,3 +46,36 @@ export interface TimelineEvent {
   icon: string;
   type: 'access' | 'credential' | 'movement' | 'exfiltration' | 'impact';
 }
+
+export type PublishStatus = 'idle' | 'queued' | 'publishing' | 'success' | 'failed';
+
+export interface PublishTarget {
+  id: string;
+  name: string;
+  type: 'wordpress' | 'static-site' | 'youtube' | 'other';
+  url: string;
+  description?: string;
+}
+
+export interface PublishJob {
+  id: string;
+  campaignId: string;
+  targetId: string;
+  status: PublishStatus;
+  message?: string;
+  createdAt: string;
+  assets?: string[];
+}
+
+export interface PublishRequest {
+  campaignId: string;
+  targetId: string;
+  assets?: string[];
+  metadata?: Record<string, string>;
+}
+
+export interface PublishResult {
+  id: string;
+  status: PublishStatus;
+  message?: string;
+}

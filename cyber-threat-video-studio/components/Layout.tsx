@@ -55,7 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Bell size={20} />
               <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
             </button>
-            <Button icon={<Plus size={16} />} className="hidden md:inline-flex" onClick={() => newCampaign.mutate()} loading={newCampaign.isLoading}>
+            <Button icon={<Plus size={16} />} className="hidden md:inline-flex" onClick={() => newCampaign.mutate()} loading={newCampaign.isPending}>
               New Campaign
             </Button>
           </div>
