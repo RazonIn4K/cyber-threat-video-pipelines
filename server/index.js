@@ -20,6 +20,7 @@ const stepToScript = {
   shotlist: 'generate_shotlist.py',
   audio: 'generate_audio.py',
   sora: 'generate_sora_clips.py',
+  media: 'generate_sora_clips.py',
 };
 
 const runPython = (campaignId, scriptName, extraArgs = [], simulate = true) =>

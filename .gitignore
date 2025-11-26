@@ -48,3 +48,7 @@ temp/
 # Build outputs
 dist/
 build/
+
+# Node
+node_modules/
+*/node_modules/
