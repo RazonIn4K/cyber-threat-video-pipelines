@@ -1,18 +1,47 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 import { mediaApi } from '../api/media';
 import { useMediaStore } from '../stores/mediaStore';
-import { Search, Grid, List, Download, RefreshCw, MoreVertical, Play, Music, Upload, Film } from 'lucide-react';
+import { Search, Grid, List, Download, RefreshCw, MoreVertical, Play, Music, Upload, Film, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Card } from '../components/ui/Card';
 import toast from 'react-hot-toast';
 
-const MediaLibrary: React.FC = () => {
-  const { filter, setFilter, setSearch, search } = useMediaStore();
-  const { data: assets, isLoading, refetch } = useQuery({ queryKey: ['media', filter, search], queryFn: mediaApi.list });
+const Modal = ({ asset, onClose, campaignId }) => {
+  if (!asset) return null;
+  const assetUrl = `/api/media/${campaignId}/${asset.type.toLowerCase()}/${asset.title}`;
 
   return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-background-card p-4 rounded-lg max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-white"><X /></button>
+        {asset.type === 'Audio' ? (
+          <audio controls autoPlay src={assetUrl} className="w-full">Your browser does not support the audio element.</audio>
+        ) : (
+          <video controls autoPlay src={assetUrl} className="w-full">Your browser does not support the video tag.</video>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const MediaLibrary: React.FC = () => {
+  const { id: campaignId } = useParams();
+  const { filter, setFilter, setSearch, search } = useMediaStore();
+  const { data: assets, isLoading, refetch } = useQuery({ queryKey: ['media', campaignId], queryFn: () => mediaApi.list(campaignId) });
+  const [selectedAsset, setSelectedAsset] = useState(null);
+
+  const filteredAssets = assets?.filter((asset) => {
+    const matchesFilter = filter === 'all' || asset.type.toLowerCase() === filter;
+    const matchesSearch = !search || asset.title.toLowerCase().includes(search.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  return (
+    <>
+    <Modal asset={selectedAsset} onClose={() => setSelectedAsset(null)} campaignId={campaignId} />
     <div className="space-y-8 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -69,13 +98,13 @@ const MediaLibrary: React.FC = () => {
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {isLoading && Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-xl" />)}
-            {!isLoading && assets?.map((asset) => (
+            {!isLoading && filteredAssets?.map((asset) => (
                 <div key={asset.id} className="group bg-background-card border border-border rounded-xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-[0_0_20px_rgba(13,223,242,0.1)]">
                     {/* Thumbnail */}
                     <div className="relative aspect-video bg-black group-hover:opacity-90 transition-opacity">
                         <img src={asset.thumbnailUrl} alt={asset.title} className="w-full h-full object-cover opacity-80" loading="lazy" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
-                            <button className="w-12 h-12 bg-primary/90 rounded-full flex items-center justify-center text-black transform scale-90 group-hover:scale-100 transition-transform">
+                            <button onClick={() => setSelectedAsset(asset)} className="w-12 h-12 bg-primary/90 rounded-full flex items-center justify-center text-black transform scale-90 group-hover:scale-100 transition-transform">
                                 <Play size={24} fill="currentColor" className="ml-1" />
                             </button>
                         </div>

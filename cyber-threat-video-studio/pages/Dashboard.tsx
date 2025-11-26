@@ -132,7 +132,7 @@ const Dashboard: React.FC = () => {
                                         <span className="text-sm text-gray-300">{camp.status}</span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-sm text-gray-400">{camp.progress}</td>
+                                <td className="px-6 py-4 text-sm text-gray-400">{camp.progress}%</td>
                                 <td className="px-6 py-4 text-right space-x-2">
                                     <Button variant="ghost" className="!p-2" icon={<MoreHorizontal size={18} />} aria-label="Edit" />
                                     <Button variant="danger" className="!p-2" onClick={() => deleteMutation.mutate(camp.id)} aria-label="Delete">

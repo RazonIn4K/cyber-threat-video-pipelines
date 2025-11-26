@@ -1,6 +1,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
-import { Bell, Search, Plus } from 'lucide-react';
+import { Bell, Search, Plus, Menu } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Link, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const location = useLocation();
   const crumbs = location.pathname.split('/').filter(Boolean);
   const newCampaign = useMutation({
@@ -26,13 +27,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   });
   return (
     <div className="min-h-screen bg-background flex text-gray-100 font-sans">
-      <Sidebar />
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
         {/* Top Header */}
         <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-10">
-          <nav className="flex items-center gap-2 text-sm text-gray-400" aria-label="Breadcrumb">
+          <div className="flex items-center gap-4">
+            <button className="lg:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu />
+            </button>
+            <nav className="hidden lg:flex items-center gap-2 text-sm text-gray-400" aria-label="Breadcrumb">
             <Link to="/" className="hover:text-primary">Home</Link>
             {crumbs.map((c, idx) => (
               <React.Fragment key={idx}>

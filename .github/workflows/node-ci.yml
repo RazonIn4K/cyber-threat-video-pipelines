@@ -1,0 +1,37 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'cyber-threat-video-studio/**'
+      - '.github/workflows/node-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'cyber-threat-video-studio/**'
+      - '.github/workflows/node-ci.yml'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: cyber-threat-video-studio/package-lock.json
+    - name: Install dependencies
+      run: cd cyber-threat-video-studio && npm install
+    - name: Build
+      run: cd cyber-threat-video-studio && npm run build --if-present
+    - name: Lint
+      run: cd cyber-threat-video-studio && npm run lint

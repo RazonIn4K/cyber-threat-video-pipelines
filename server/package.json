@@ -4,11 +4,22 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "lint": "eslint .",
+    "test": "mocha"
   },
   "dependencies": {
+    "@eslint/js": "^9.39.1",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "globals": "^16.5.0",
+    "googleapis": "^166.0.0"
+  },
+  "devDependencies": {
+    "chai": "^6.2.1",
+    "eslint": "^8.57.0",
+    "mocha": "^11.7.5",
+    "supertest": "^7.1.4"
   }
 }

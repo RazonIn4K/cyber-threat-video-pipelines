@@ -23,51 +23,23 @@ const seedMedia: MediaAsset[] = [
 let hydrated = false;
 
 export const mediaApi = {
-  list: async (): Promise<MediaAsset[]> => {
-    const apiBase = import.meta.env.VITE_API_BASE;
-    if (apiBase) {
-      const res = await fetch(`${apiBase}/campaigns/shai-hulud-2025/media`);
-      if (!res.ok) throw new Error('Failed to load media');
-      const data = await res.json();
-      // Map audio/video filenames into MediaAsset stubs
-      const assets: MediaAsset[] = [
-        ...(data.audio || []).map((title: string, idx: number) => ({
-          id: `audio-${idx}`,
-          campaignId: 'shai-hulud-2025',
-          title,
-          description: 'Audio asset',
-          type: 'Audio',
-          size: 'n/a',
-          generatedAt: 'just now',
-          duration: 'n/a',
-          thumbnailUrl: 'https://picsum.photos/seed/audio/400/225',
-        })),
-        ...(data.video || []).map((title: string, idx: number) => ({
-          id: `video-${idx}`,
-          campaignId: 'shai-hulud-2025',
-          title,
-          description: 'Video asset',
-          type: 'Video',
-          size: 'n/a',
-          generatedAt: 'just now',
-          duration: 'n/a',
-          thumbnailUrl: 'https://picsum.photos/seed/video/400/225',
-        })),
-      ];
-      useMediaStore.getState().setMedia(assets);
-      return assets;
-    }
-    if (!hydrated) {
-      useMediaStore.getState().setMedia(seedMedia);
-      hydrated = true;
-    }
-    await delay(250);
-    const { media, filter, search } = useMediaStore.getState();
-    return media.filter((m) => {
-      const matchesFilter = filter === 'all' || m.type.toLowerCase() === filter;
-      const matchesSearch = !search || m.title.toLowerCase().includes(search.toLowerCase());
-      return matchesFilter && matchesSearch;
-    });
+  list: async (campaignId: string): Promise<MediaAsset[]> => {
+    const apiBase = import.meta.env.VITE_API_BASE || '/api';
+    const res = await fetch(`${apiBase}/campaigns/${campaignId}/media`);
+    if (!res.ok) throw new Error('Failed to fetch media');
+    const data = await res.json();
+
+    const assets = [
+      ...data.audio.map(file => ({ id: file, title: file, type: 'Audio', thumbnailUrl: 'https://picsum.photos/seed/audio/400/225' })),
+      ...data.video.map(file => ({ id: file, title: file, type: 'Video', thumbnailUrl: 'https://picsum.photos/seed/video/400/225' })),
+    ];
+    return assets;
+  },
+
+  get: async (campaignId: string, id: string) => {
+    // This is not used in the media library, but could be useful for a detail page
+    const assets = await mediaApi.list(campaignId);
+    return assets.find(a => a.id === id) || null;
   },
 
   create: async (input: Partial<MediaAsset>): Promise<MediaAsset> => {
