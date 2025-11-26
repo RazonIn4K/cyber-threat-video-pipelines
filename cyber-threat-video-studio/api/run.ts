@@ -19,29 +19,63 @@ const runStep = async (label: string) => {
 export const runApi = {
   pipeline: async (input: unknown) =>
     withLogging('pipeline', async () => {
-    const parsed = pipelineSchema.parse(input || {});
-    usePipelineStore.getState().setStatus('running', 'Pipeline starting');
-    await runStep('Outline');
-    await runStep('Script');
-    await runStep('Media');
-    const result = await pipelineExamples.makePipeline();
-    usePipelineStore.getState().setStatus(result.ok ? 'success' : 'failed', result.stderr || 'Pipeline complete');
-    return { ok: result.ok, stdout: result.stdout, stderr: result.stderr, campaignId: parsed.campaignId };
-  }),
+      const parsed = pipelineSchema.parse(input || {});
+      const apiBase = import.meta.env.VITE_API_BASE;
+      usePipelineStore.getState().setStatus('running', 'Pipeline starting');
+
+      if (apiBase) {
+        const steps: Array<'outline' | 'script' | 'media'> = ['outline', 'script', 'media'];
+        let ok = true;
+        for (const step of steps) {
+          const res = await runApi[step]();
+          ok = ok && res.ok;
+        }
+        usePipelineStore.getState().setStatus(ok ? 'success' : 'failed');
+        return { ok, stdout: '', stderr: ok ? '' : 'One or more steps failed', campaignId: parsed.campaignId };
+      }
+
+      await runStep('Outline');
+      await runStep('Script');
+      await runStep('Media');
+      const result = await pipelineExamples.makePipeline();
+      usePipelineStore.getState().setStatus(result.ok ? 'success' : 'failed', result.stderr || 'Pipeline complete');
+      return { ok: result.ok, stdout: result.stdout, stderr: result.stderr, campaignId: parsed.campaignId };
+    }),
   outline: async () => {
+    const apiBase = import.meta.env.VITE_API_BASE;
     usePipelineStore.getState().setStatus('running', 'Outline');
+    if (apiBase) {
+      const res = await fetch(`${apiBase}/run/outline`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      usePipelineStore.getState().setStatus(data.ok ? 'success' : 'failed', data.stderr);
+      return data;
+    }
     const result = await pipelineExamples.pythonScript('../campaigns/shai-hulud-2025/scripts/generate_outline.py');
     usePipelineStore.getState().setStatus(result.ok ? 'success' : 'failed', result.stderr);
     return result;
   },
   script: async () => {
+    const apiBase = import.meta.env.VITE_API_BASE;
     usePipelineStore.getState().setStatus('running', 'Script');
+    if (apiBase) {
+      const res = await fetch(`${apiBase}/run/script`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      usePipelineStore.getState().setStatus(data.ok ? 'success' : 'failed', data.stderr);
+      return data;
+    }
     const result = await pipelineExamples.pythonScript('../campaigns/shai-hulud-2025/scripts/generate_script.py');
     usePipelineStore.getState().setStatus(result.ok ? 'success' : 'failed', result.stderr);
     return result;
   },
   media: async () => {
+    const apiBase = import.meta.env.VITE_API_BASE;
     usePipelineStore.getState().setStatus('running', 'Media');
+    if (apiBase) {
+      const res = await fetch(`${apiBase}/run/media`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      usePipelineStore.getState().setStatus(data.ok ? 'success' : 'failed', data.stderr);
+      return data;
+    }
     const result = await pipelineExamples.pythonScript('../campaigns/shai-hulud-2025/scripts/generate_sora_clips.py');
     usePipelineStore.getState().setStatus(result.ok ? 'success' : 'failed', result.stderr);
     return result;

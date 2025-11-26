@@ -22,6 +22,14 @@ let hydrated = false;
 
 export const campaignsApi = {
   list: async (): Promise<Campaign[]> => {
+    const apiBase = import.meta.env.VITE_API_BASE;
+    if (apiBase) {
+      const res = await fetch(`${apiBase}/campaigns`);
+      if (!res.ok) throw new Error('Failed to load campaigns');
+      const data = (await res.json()) as Campaign[];
+      useCampaignStore.getState().setCampaigns(data);
+      return data;
+    }
     if (!hydrated) {
       useCampaignStore.getState().setCampaigns(initialCampaigns);
       hydrated = true;
@@ -39,6 +47,15 @@ export const campaignsApi = {
   },
 
   get: async (id: string) => {
+    const apiBase = import.meta.env.VITE_API_BASE;
+    if (apiBase) {
+      const res = await fetch(`${apiBase}/campaigns`);
+      if (!res.ok) throw new Error('Failed to load campaigns');
+      const data = (await res.json()) as Campaign[];
+      const found = data.find((c) => c.id === id);
+      if (!found) throw new Error('Campaign not found');
+      return found;
+    }
     await delay(150);
     const campaign = useCampaignStore.getState().campaigns.find((c) => c.id === id);
     if (!campaign) throw new Error('Campaign not found');

@@ -64,6 +64,16 @@ Default Vite env vars (set in `.env.local`):
 - `VITE_APP_ENV` — label for environment (e.g., local, staging, prod)
 - `VITE_LOG_LEVEL` — optional log level for client
 
+4) Optional local API shim (to run pipeline steps from the UI)
+
+```bash
+cd server
+npm install
+npm start   # starts on :3000, exposes /api/run/* using --simulate by default
+```
+
+Then set `VITE_API_BASE=http://localhost:3000` in `cyber-threat-video-studio/.env.local` and rebuild the UI.
+
 ## Adding New Campaigns
 
 To add a new campaign (e.g., `log4shell-retro`):

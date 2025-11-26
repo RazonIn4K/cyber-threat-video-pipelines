@@ -24,6 +24,39 @@ let hydrated = false;
 
 export const mediaApi = {
   list: async (): Promise<MediaAsset[]> => {
+    const apiBase = import.meta.env.VITE_API_BASE;
+    if (apiBase) {
+      const res = await fetch(`${apiBase}/campaigns/shai-hulud-2025/media`);
+      if (!res.ok) throw new Error('Failed to load media');
+      const data = await res.json();
+      // Map audio/video filenames into MediaAsset stubs
+      const assets: MediaAsset[] = [
+        ...(data.audio || []).map((title: string, idx: number) => ({
+          id: `audio-${idx}`,
+          campaignId: 'shai-hulud-2025',
+          title,
+          description: 'Audio asset',
+          type: 'Audio',
+          size: 'n/a',
+          generatedAt: 'just now',
+          duration: 'n/a',
+          thumbnailUrl: 'https://picsum.photos/seed/audio/400/225',
+        })),
+        ...(data.video || []).map((title: string, idx: number) => ({
+          id: `video-${idx}`,
+          campaignId: 'shai-hulud-2025',
+          title,
+          description: 'Video asset',
+          type: 'Video',
+          size: 'n/a',
+          generatedAt: 'just now',
+          duration: 'n/a',
+          thumbnailUrl: 'https://picsum.photos/seed/video/400/225',
+        })),
+      ];
+      useMediaStore.getState().setMedia(assets);
+      return assets;
+    }
     if (!hydrated) {
       useMediaStore.getState().setMedia(seedMedia);
       hydrated = true;
