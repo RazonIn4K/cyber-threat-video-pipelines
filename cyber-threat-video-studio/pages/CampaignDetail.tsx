@@ -31,7 +31,7 @@ const CampaignDetail: React.FC = () => {
 
   const orderedLogs = useMemo(() => logs.slice(0, 15), [logs]);
 
-  const handleRun = (step: 'outline' | 'script' | 'media') => {
+  const handleRun = (step: 'outline' | 'script' | 'shorts' | 'shotlist' | 'audio' | 'sora' | 'media') => {
     if (!id) {
       toast.error('Campaign ID is missing!');
       return;
@@ -165,10 +165,37 @@ const CampaignDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Run Media */}
+                        {/* Run Shorts */}
+                        <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
+                            <div className="flex items-center gap-4">
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('shorts')} disabled={isStreaming}>
+                                    Run Shorts
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Run Shotlist */}
+                        <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
+                            <div className="flex items-center gap-4">
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('shotlist')} disabled={isStreaming}>
+                                    Run Shotlist
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Run Audio */}
+                        <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
+                            <div className="flex items-center gap-4">
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('audio')} disabled={isStreaming}>
+                                    Run Audio
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Run Media (Sora) */}
                         <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
                              <div className="flex items-center gap-4">
-                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('media')} disabled={isStreaming}>
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('sora')} disabled={isStreaming}>
                                     Run Media
                                 </Button>
                                 {isStreaming && (
