@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { campaignsApi } from '../api/campaigns';
 import { TimelineEvent } from '../types';
 import { Play, FileText, CheckCircle2, Clock, MapPin, Key, Network, Upload, FileCode } from 'lucide-react';
@@ -8,8 +8,8 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Switch } from '../components/ui/Switch';
-import { runApi } from '../api/run';
 import toast from 'react-hot-toast';
+import { useLogsStore } from '../stores/logsStore';
 
 const CampaignDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,17 +27,28 @@ const CampaignDetail: React.FC = () => {
     { id: '3', title: 'Lateral Movement', timestamp: '2024-05-11 14:00 UTC', description: 'Pivoted to GitHub Actions using stolen tokens.', icon: 'network_check', type: 'movement' },
   ];
 
-  const runStep = useMutation({
-    mutationFn: (step: 'outline' | 'script' | 'media') => {
-      if (!id) {
-        toast.error('Campaign ID is missing!');
-        return Promise.reject('Campaign ID is missing');
+  const { logs, isStreaming, startStreaming, stopStreaming, currentStep } = useLogsStore();
+
+  const orderedLogs = useMemo(() => logs.slice(0, 15), [logs]);
+
+  const handleRun = (step: 'outline' | 'script' | 'media') => {
+    if (!id) {
+      toast.error('Campaign ID is missing!');
+      return;
+    }
+    startStreaming(step, { campaignId: id, simulate }, (success) => {
+      if (success) {
+        toast.success(`Step ${step} completed`);
+      } else {
+        toast.error(`Step ${step} failed`);
       }
-      return runApi[step]({ campaignId: id, simulate });
-    },
-    onSuccess: (data, step) => toast.success(`Successfully triggered step: ${step}`),
-    onError: (error, step) => toast.error(`Failed to trigger step: ${step}`),
-  });
+    });
+  };
+
+  const handleStop = () => {
+    stopStreaming();
+    toast('Stopped current run');
+  };
 
   if (isLoading || !campaign) return <Skeleton className="h-40 w-full" />;
 
@@ -111,18 +122,21 @@ const CampaignDetail: React.FC = () => {
                 
                 {/* Actions Panel (Always visible in this mock for layout demo) */}
                 <Card className="overflow-hidden">
-                     <div className="p-6 border-b border-border flex justify-between items-center">
+                        <div className="p-6 border-b border-border flex justify-between items-center">
                         <h2 className="text-xl font-bold text-white">Campaign Actions</h2>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <label className="text-sm font-medium text-gray-300">Simulate</label>
                           <Switch checked={simulate} onChange={setSimulate} />
+                          {isStreaming && (
+                            <Button variant="ghost" size="sm" onClick={handleStop}>Stop</Button>
+                          )}
                         </div>
                      </div>
                      <div className="divide-y divide-border">
                         {/* Run Outline */}
                         <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
                             <div className="flex items-center gap-4">
-                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => runStep.mutate('outline')}>
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('outline')} disabled={isStreaming}>
                                     Run Outline
                                 </Button>
                                 <span className="flex items-center gap-1.5 bg-status-success/10 text-status-success px-2.5 py-1 rounded-full text-xs font-bold">
@@ -138,7 +152,7 @@ const CampaignDetail: React.FC = () => {
                          {/* Run Script */}
                         <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
                             <div className="flex items-center gap-4">
-                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => runStep.mutate('script')}>
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('script')} disabled={isStreaming}>
                                     Run Script
                                 </Button>
                                 <span className="flex items-center gap-1.5 bg-status-success/10 text-status-success px-2.5 py-1 rounded-full text-xs font-bold">
@@ -154,15 +168,33 @@ const CampaignDetail: React.FC = () => {
                         {/* Run Media */}
                         <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors">
                              <div className="flex items-center gap-4">
-                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => runStep.mutate('media')}>
+                                <Button variant="ghost" icon={<Play size={16} />} onClick={() => handleRun('media')} disabled={isStreaming}>
                                     Run Media
                                 </Button>
-                                <span className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-bold">
-                                    <Clock size={12} className="animate-spin" /> Running
-                                </span>
+                                {isStreaming && (
+                                  <span className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-bold">
+                                      <Clock size={12} className="animate-spin" /> Running {currentStep ?? ''}
+                                  </span>
+                                )}
                             </div>
                         </div>
                      </div>
+
+                    <div className="border-t border-border bg-background-softer/50 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">Recent Logs</p>
+                        {isStreaming && <span className="text-xs text-primary">Live</span>}
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                        {orderedLogs.length === 0 && <p className="text-xs text-gray-500">No logs yet.</p>}
+                        {orderedLogs.map((log) => (
+                          <div key={log.id} className="text-xs text-gray-300">
+                            <span className="text-gray-500 mr-2">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
+                            <span className={log.type === 'error' || log.type === 'warning' ? 'text-status-warning' : ''}>{log.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                 </Card>
 
                 {/* Threat Intel / Impacted Ecosystem */}

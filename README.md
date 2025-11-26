@@ -104,3 +104,46 @@ MIT License - See LICENSE file
 1. Fork the repository
 2. Create a campaign branch
 3. Submit a pull request with your campaign folder
+
+
+## API Integration (New)
+
+The project now includes a full React-based dashboard and Express API server.
+
+### Quick Start
+
+```bash
+# Terminal 1: Start API server
+cd server && npm install && npm start
+
+# Terminal 2: Start frontend
+cd cyber-threat-video-studio
+echo "VITE_API_BASE=http://localhost:3000" > .env.local
+npm install && npm run dev
+```
+
+### Architecture Overview
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  React UI       │────▶│  Express API    │────▶│  Python Scripts │
+│  (Vite + React) │ SSE │  (Node.js)      │spawn│  (Campaign)     │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                       │                       │
+        ▼                       ▼                       ▼
+   User Interface         REST + SSE            Pipeline Steps
+   - Dashboard            - /campaigns          - generate_outline
+   - Campaign Detail      - /run/:step          - generate_script
+   - Logs (real-time)     - /run/:step/stream   - generate_audio
+   - Media Library        - /validate           - generate_sora_clips
+```
+
+### Features
+
+- **Real-time Streaming**: SSE-based log streaming during pipeline execution
+- **Retry Logic**: Automatic retry with exponential backoff for failed requests
+- **Abort Support**: Cancel running pipeline operations
+- **Status Inference**: Automatic campaign status from generated files
+- **Validation**: Check campaign configuration before running
+
+See `cyber-threat-video-studio/README.md` and `server/README.md` for detailed documentation.

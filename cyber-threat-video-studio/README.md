@@ -1,20 +1,74 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Cyber Threat Video Studio
 
-# Run and deploy your AI Studio app
+A React-based dashboard for managing and running the video pipeline for cyber threat campaigns.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/127qcxZZ8zSmm79SZ1RVgkjQ3t8ASSsvP
+- **Campaign Management**: View, monitor, and manage threat video campaigns
+- **Pipeline Execution**: Run individual pipeline steps or full pipeline
+- **Real-time Logs**: SSE-based streaming of Python script output
+- **Simulation Mode**: Test pipeline without API calls
+- **Status Inference**: Automatic campaign status based on generated files
 
-## Run Locally
+## Quick Start
 
-**Prerequisites:**  Node.js
+### Prerequisites
+- Node.js 18+
+- API server running (see `../server/README.md`)
 
+### Development
+```bash
+# Install dependencies
+npm install
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# Configure API endpoint
+echo "VITE_API_BASE=http://localhost:3000" > .env.local
+
+# Start development server
+npm run dev
+```
+
+### Production Build
+```bash
+npm run build
+npm run preview
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     React Application                        │
+├─────────────────────────────────────────────────────────────┤
+│  Pages          │  Stores (Zustand)  │  API Layer           │
+│  ─────          │  ───────────────   │  ─────────           │
+│  Dashboard      │  campaignStore     │  campaigns.ts        │
+│  CampaignDetail │  pipelineStore     │  run.ts (+ retry)    │
+│  LogsPage       │  logsStore (SSE)   │  logs.ts (SSE)       │
+│  MediaLibrary   │  mediaStore        │  media.ts            │
+│  ShotlistSync   │  secretsStore      │  secrets.ts          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                    HTTP/SSE  │  VITE_API_BASE
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Express API Server                        │
+│                    (../server/index.js)                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `api/run.ts` | Pipeline execution with retry logic |
+| `api/logs.ts` | SSE streaming client |
+| `stores/logsStore.ts` | Real-time log management |
+| `stores/pipelineStore.ts` | Run state with abort support |
+| `pages/CampaignDetail.tsx` | Main campaign UI with actions |
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_BASE` | API server URL | (empty - uses relative paths) |
